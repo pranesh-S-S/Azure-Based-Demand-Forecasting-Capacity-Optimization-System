@@ -108,7 +108,6 @@ for col in columns:
     lower_bound = Q1 - 1.5 * IQR
     upper_bound = Q3 + 1.5 * IQR
     outliers = df[(df[col] >= upper_bound) | (df[col]<= lower_bound)]
-    # outliers = df[(df[col] > upper_bound) | (df[col] < lower_bound)]
     df[col] = df[col].clip(lower=lower_bound, upper=upper_bound)
 
 
@@ -226,6 +225,7 @@ plt.show()
 
 # ----------------- FINAL SHAPE OF THE DATASET -----------------
 print("\nFinal dataset shape:", df.shape)
+
 
 
 
