@@ -9,7 +9,7 @@ print(df[['usage_units', 'cost_usd']].corr())
 df['timestamp'] = pd.to_datetime(df['timestamp']) #converts the string data into datetime objects
 df = df.sort_values(by='timestamp') # sorting is mandatory for the time-series
 
-# ---- TIME FEATURES (MANDATORY FOR FORECASTING) ----
+#  TIME FEATURES (MANDATORY FOR FORECASTING) 
 df['year'] = df['timestamp'].dt.year
 df['month'] = df['timestamp'].dt.month
 df['day'] = df['timestamp'].dt.day
@@ -121,12 +121,12 @@ for col in columns:
     print(len(outliers))
 
 
-#  ---------  prints the rows before lag  ------------
+#  prints the rows before lag  
 print("Rows before lag:", len(df))
 
 
 
-# ---- LAG FEATURES (CRITICAL FOR TIME SERIES) ----
+#  LAG FEATURES (CRITICAL FOR TIME SERIES) 
 
 df['lag_1'] = df['usage_units'].shift(1)
 df['lag_7'] = df['usage_units'].shift(7)
@@ -136,13 +136,12 @@ df['rolling_mean_7'] = df['usage_units'].rolling(window=7).mean()
 
 df = df.dropna(subset=['lag_1','lag_7','rolling_mean_7'])
 
-# ----------- prints the rows after lag ---------
+# prints the rows after lag 
 
 print("Rows after lag:", len(df))
 
-# ==============================
+
 # BUSINESS LOGIC VALIDATION
-# ==============================
 
 print("\n--- BUSINESS RULE VALIDATION ---")
 
@@ -171,12 +170,12 @@ print("Economic index outside realistic range:",
 
 
 
-# ---- ENCODING CATEGORICAL VARIABLES ----
+#  ENCODING CATEGORICAL VARIABLES 
 
 df = pd.get_dummies(df, columns=['region', 'service_type'], drop_first=True)
 
 
-# ---- Core Continuous Variables ----
+#  Core Continuous Variables 
 core_vars = [
     'usage_units',
     'provisioned_capacity',
@@ -202,7 +201,7 @@ plt.suptitle("After Preprocessing - Core Variables Distribution", fontsize=16)
 plt.tight_layout()
 plt.show()
 
-# ---- TIME FEATURE DISTRIBUTION ----
+#  TIME FEATURE DISTRIBUTION 
 import seaborn as sns
 
 
@@ -223,7 +222,7 @@ sns.countplot(x='year', data=df)
 plt.tight_layout()
 plt.show()
 
-# ----------------- FINAL SHAPE OF THE DATASET -----------------
+#  FINAL SHAPE OF THE DATASET 
 print("\nFinal dataset shape:", df.shape)
 
 
@@ -231,3 +230,4 @@ print("\nFinal dataset shape:", df.shape)
 
 
    
+
