@@ -2,8 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-df = pd.read_csv(r"C:\Users\pranesh.S.S\Downloads\azure_dataset_missing_values.csv"
-                 )
+df = pd.read_csv(r"C:\Users\pranesh.S.S\Downloads\azure_dataset_missing_values.csv")
 print(df)
 
 
@@ -173,9 +172,8 @@ print("Economic index outside realistic range:",
       ((df['economic_index'] < 80) | (df['economic_index'] > 120)).sum())
 
 
-# ---------------------------------
+
 # Feature Engineering
-# ---------------------------------
 
 # Usage spike flag
 df['rolling_std_7'] = df['usage_units'].rolling(7).std()
@@ -256,6 +254,7 @@ plt.show()
 
 # ----------------- FINAL SHAPE OF THE DATASET -----------------
 print("\nFinal dataset shape:", df.shape)
+
 
 
 
