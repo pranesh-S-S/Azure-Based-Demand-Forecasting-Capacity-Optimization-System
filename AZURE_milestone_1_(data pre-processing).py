@@ -1,6 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-df = pd.read_csv(r"C:\Users\pranesh.S.S\AppData\Local\Packages\5319275A.WhatsAppDesktop_cv1g1gvanyjgm\LocalState\sessions\D7FC61322C3B74B6CD41C9C3FA0FB0905AA7C652\transfers\2026-06\azure_dataset_missing_values.csv")
+import seaborn as sns
+
+df = pd.read_csv(r"C:\Users\pranesh.S.S\Downloads\azure_dataset_missing_values.csv"
+                 )
 print(df)
 
 
@@ -9,12 +12,13 @@ print(df[['usage_units', 'cost_usd']].corr())
 df['timestamp'] = pd.to_datetime(df['timestamp']) #converts the string data into datetime objects
 df = df.sort_values(by='timestamp') # sorting is mandatory for the time-series
 
-#  TIME FEATURES (MANDATORY FOR FORECASTING) 
+# ---- TIME FEATURES (MANDATORY FOR FORECASTING) ----
 df['year'] = df['timestamp'].dt.year
 df['month'] = df['timestamp'].dt.month
 df['day'] = df['timestamp'].dt.day
 df['day_of_week'] = df['timestamp'].dt.dayofweek
 df['quarter'] = df['timestamp'].dt.quarter
+
 
 print(df)
 
@@ -121,12 +125,12 @@ for col in columns:
     print(len(outliers))
 
 
-#  prints the rows before lag  
+#  ---------  prints the rows before lag  ------------
 print("Rows before lag:", len(df))
 
 
 
-#  LAG FEATURES (CRITICAL FOR TIME SERIES) 
+# ---- LAG FEATURES (CRITICAL FOR TIME SERIES) ----
 
 df['lag_1'] = df['usage_units'].shift(1)
 df['lag_7'] = df['usage_units'].shift(7)
@@ -136,12 +140,12 @@ df['rolling_mean_7'] = df['usage_units'].rolling(window=7).mean()
 
 df = df.dropna(subset=['lag_1','lag_7','rolling_mean_7'])
 
-# prints the rows after lag 
+# ----------- prints the rows after lag ---------
 
 print("Rows after lag:", len(df))
 
-
 # BUSINESS LOGIC VALIDATION
+
 
 print("\n--- BUSINESS RULE VALIDATION ---")
 
@@ -169,13 +173,42 @@ print("Economic index outside realistic range:",
       ((df['economic_index'] < 80) | (df['economic_index'] > 120)).sum())
 
 
+# ---------------------------------
+# Feature Engineering
+# ---------------------------------
 
-#  ENCODING CATEGORICAL VARIABLES 
+# Usage spike flag
+df['rolling_std_7'] = df['usage_units'].rolling(7).std()
+
+df['usage_spike_flag'] = (
+    df['usage_units'] >
+    df['rolling_mean_7'] + 2 * df['rolling_std_7']
+).astype(int)
+
+df = df.dropna(subset=['rolling_std_7'])
+df = df.reset_index(drop=True)
+
+# Seasonality flags
+df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
+df['is_month_start'] = df['timestamp'].dt.is_month_start.astype(int)
+df['is_month_end'] = df['timestamp'].dt.is_month_end.astype(int)
+
+# Time granularity validation
+
+print("Date range:", df['timestamp'].min(), "to", df['timestamp'].max())
+date_range = pd.date_range(df['timestamp'].min(), df['timestamp'].max(), freq='D') 
+print("Expected number of days:", len(date_range)) 
+print("Actual unique timestamps:", df['timestamp'].nunique())
+print("Missing dates:", len(date_range) - df['timestamp'].nunique())
+
+
+
+# ---- ENCODING CATEGORICAL VARIABLES ----
 
 df = pd.get_dummies(df, columns=['region', 'service_type'], drop_first=True)
 
 
-#  Core Continuous Variables 
+# ---- Core Continuous Variables ----
 core_vars = [
     'usage_units',
     'provisioned_capacity',
@@ -201,8 +234,7 @@ plt.suptitle("After Preprocessing - Core Variables Distribution", fontsize=16)
 plt.tight_layout()
 plt.show()
 
-#  TIME FEATURE DISTRIBUTION 
-import seaborn as sns
+# ---- TIME FEATURE DISTRIBUTION ----
 
 
 plt.figure(figsize=(12,8))
@@ -222,12 +254,10 @@ sns.countplot(x='year', data=df)
 plt.tight_layout()
 plt.show()
 
-#  FINAL SHAPE OF THE DATASET 
+# ----------------- FINAL SHAPE OF THE DATASET -----------------
 print("\nFinal dataset shape:", df.shape)
 
 
 
 
-
    
-
