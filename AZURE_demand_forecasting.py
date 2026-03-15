@@ -799,3 +799,15 @@ best_model = validation_df["RMSE"].idxmin()
 best_rmse = validation_df.loc[best_model, "RMSE"]
 
 print(f"\nBest Model: {best_model} (RMSE = {best_rmse:.4f})")
+
+
+# ===============================
+# SAVE BEST MODEL
+# ===============================
+
+import joblib
+
+joblib.dump(best_xgb_model, "best_xgboost_model.pkl")
+joblib.dump(X_train.columns.tolist(), "model_features.pkl")
+
+print("Best XGBoost model saved successfully.")
