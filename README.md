@@ -4,16 +4,23 @@
 
 ## 📝 Description
 
-The Azure-Based Demand Forecasting & Capacity Optimization System is a sophisticated cloud-native solution designed to bridge the gap between predictive analytics and operational execution. By harnessing the full power of the Microsoft Azure ecosystem, this project provides a robust framework for processing large-scale datasets to generate highly accurate demand forecasts. The system translates these predictions into actionable capacity strategies, allowing organizations to dynamically adjust their resources, minimize waste, and maintain optimal service levels. Ideal for supply chain management and infrastructure scaling, this end-to-end pipeline integrates advanced machine learning models with automated cloud workflows to ensure data-driven decision-making at every level of the enterprise.
+The Azure-Based Demand Forecasting & Capacity Optimization System is a robust, cloud-native enterprise solution designed to transform operational decision-making through data-driven insights. Leveraging the full power of the Microsoft Azure ecosystem, this system utilizes advanced machine learning and predictive analytics to forecast future demand with high precision. By aligning production, inventory, and workforce capacity with these forecasts, the platform helps organizations minimize operational waste, reduce costs, and eliminate service bottlenecks. This comprehensive system provides a scalable framework for businesses looking to optimize their supply chain and resource management in an increasingly dynamic market environment.
 
 ## 📁 Project Structure
 
 ```
 .
-├── AZURE_milestone_1_(data pre-processing).py
+├── AZURE_demand_forecasting.py
+├── Agile_Pranesh.xlsx
 ├── LICENSE
 ├── MIT license.txt
-└── azure_dataset_missing_values.csv
+├── azure_dataset_missing_values.csv
+└── visualizations
+    ├── box plot (after preprocessing).png
+    ├── box plot (before pre-processing).png
+    ├── countplot(time variable).png
+    ├── histogram(after preprocessing).png
+    └── histogram(before preprocessing).png
 ```
 
 ## 👥 Contributing
@@ -33,4 +40,4 @@ Please ensure your code follows the project's style guidelines and includes test
 
 This project is licensed under the MIT License.
 
----
+
