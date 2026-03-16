@@ -1,20 +1,25 @@
 # Azure-Based-Demand-Forecasting-Capacity-Optimization-System
 
-![License](https://img.shields.io/badge/license-MIT-green)
+![License](https://img.shields.io/badge/license-LICENSE-green)
 
 ## 📝 Description
 
-The Azure-Based Demand Forecasting & Capacity Optimization System is a robust, cloud-native enterprise solution designed to transform operational decision-making through data-driven insights. Leveraging the full power of the Microsoft Azure ecosystem, this system utilizes advanced machine learning and predictive analytics to forecast future demand with high precision. By aligning production, inventory, and workforce capacity with these forecasts, the platform helps organizations minimize operational waste, reduce costs, and eliminate service bottlenecks. This comprehensive system provides a scalable framework for businesses looking to optimize their supply chain and resource management in an increasingly dynamic market environment.
+This sophisticated Azure-native solution leverages advanced machine learning and cloud-scale data analytics to transform how organizations handle demand forecasting and resource management. By integrating seamless data pipelines with predictive modeling, the system enables businesses to anticipate market fluctuations with high precision and dynamically optimize their operational capacity. Designed to minimize waste and eliminate service bottlenecks, the platform provides real-time actionable insights and automated decision-making support, ensuring that infrastructure, inventory, and labor resources are perfectly aligned with projected needs for maximum efficiency.
 
 ## 📁 Project Structure
 
 ```
 .
-├── AZURE_demand_forecasting.py
 ├── Agile_Pranesh.xlsx
 ├── LICENSE
 ├── MIT license.txt
 ├── azure_dataset_missing_values.csv
+├── azure_forecast_fixed.py
+├── best_xgboost_model.pkl
+├── clip_bounds.pkl
+├── final_cleaned_azure_data.csv
+├── imputation_medians.pkl
+├── model_features.pkl
 └── visualizations
     ├── box plot (after preprocessing).png
     ├── box plot (before pre-processing).png
@@ -38,6 +43,5 @@ Please ensure your code follows the project's style guidelines and includes test
 
 ## 📜 License
 
-This project is licensed under the MIT License.
-
+This project is licensed under the LICENSE License.
 
