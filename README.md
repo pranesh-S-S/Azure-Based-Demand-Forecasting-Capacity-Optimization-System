@@ -1,6 +1,6 @@
 # Azure-Based-Demand-Forecasting-Capacity-Optimization-System
 
-![Python](https://img.shields.io/badge/-Python-blue?logo=python&logoColor=white) ![License](https://img.shields.io/badge/license- MIT LICENCE-green)
+![Python](https://img.shields.io/badge/-Python-blue?logo=python&logoColor=white) ![License](https://img.shields.io/badge/license-MITLICENCE-green)
 ## deployed link:https://azure-based-demand-forecasting-capacity-optimization-system-3k.streamlit.app/
 ## 📝 Description
 
