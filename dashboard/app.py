@@ -840,6 +840,205 @@ with tab3:
 # TAB 4 — MODEL & FORECAST
 # ══════════════════════════════════════════════════════════════════════════
 with tab4:
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CSV UPLOAD — CUSTOM PREDICTIONS
+    # How it works:
+    #   1. User uploads a CSV with raw Azure data columns
+    #   2. The dashboard preprocesses it (same pipeline as training)
+    #   3. The saved XGBoost .pkl model makes predictions
+    #   4. Results are shown in a chart + downloadable table
+    # NOTE: This does NOT re-run the backend training script. It uses the
+    #       already-trained model artifacts saved in /models/.
+    # ══════════════════════════════════════════════════════════════════════════
+    st.markdown('<div class="section-header">📂 UPLOAD YOUR DATA FOR PREDICTIONS</div>', unsafe_allow_html=True)
+
+    with st.expander("ℹ️ How it works + Required CSV Columns", expanded=False):
+        st.markdown("""
+        ### How predictions work
+        When you upload a CSV, the dashboard will:
+        1. **Validate** your columns
+        2. **Preprocess** your data (same steps used during model training — imputation, clipping, lag features, rolling stats, Fourier terms, etc.)
+        3. **Run the saved XGBoost model** on your preprocessed data
+        4. **Display predictions** in a chart and table, with a download option
+
+        > The backend training script (`azure_forecast_fixed.py`) is **not re-run**. Streamlit uses the already-trained model saved in `/models/best_xgboost_model.pkl`.
+
+        ---
+        ### Required CSV Columns
+
+        | Column | Type | Example |
+        |--------|------|---------|
+        | `timestamp` | date/datetime | `2024-08-01` |
+        | `region` | string | `east-us` |
+        | `service_type` | string | `Compute` |
+        | `usage_units` | float | `1200.5` |
+        | `provisioned_capacity` | float | `2000.0` |
+        | `cost_usd` | float | `450.0` |
+        | `availability_pct` | float | `99.9` |
+        | `economic_index` | float | `100.2` |
+        | `market_demand_index` | float | `98.5` |
+
+        > **Tip:** Use the **"Export Executive Raw Data"** button at the top of this page to download the current dataset, modify it, and re-upload.
+        """)
+
+    uploaded_file = st.file_uploader(
+        "Upload a CSV file to generate predictions using the trained XGBoost model",
+        type=["csv"],
+        help="Upload a CSV with the required columns. Preprocessing is handled automatically.",
+        key="csv_uploader"
+    )
+
+    if uploaded_file is not None:
+        try:
+            user_df = pd.read_csv(uploaded_file)
+            st.success(f"✅ **{uploaded_file.name}** uploaded — **{len(user_df):,} rows** detected")
+
+            # ── Validate required columns ─────────────────────────────────
+            required_cols = ['timestamp','region','service_type','usage_units',
+                             'provisioned_capacity','cost_usd','availability_pct',
+                             'economic_index','market_demand_index']
+            missing_cols = [c for c in required_cols if c not in user_df.columns]
+
+            if missing_cols:
+                st.error(f"❌ Missing required columns: **{', '.join(missing_cols)}**")
+                st.info("Expand the 'How it works' section above to see the full list of required columns.")
+            else:
+                with st.spinner("⚙️ Preprocessing your data and running predictions..."):
+
+                    # ── Step 1: Basic cleaning ───────────────────────────
+                    user_df['timestamp'] = pd.to_datetime(user_df['timestamp'])
+                    user_df = user_df.sort_values('timestamp')
+                    user_df['region'] = user_df['region'].str.lower().str.replace(" ", "-")
+                    user_df['service_type'] = user_df['service_type'].str.strip()
+
+                    # ── Step 2: Imputation & clipping using saved artifacts
+                    medians_u, clips_u, group_stats_u = load_artifacts()
+                    num_cols_u = ['usage_units','provisioned_capacity','cost_usd',
+                                  'availability_pct','economic_index','market_demand_index']
+                    for col in num_cols_u:
+                        user_df[col] = user_df[col].fillna(medians_u.get(col, 0))
+                    for col, bounds in clips_u.items():
+                        if col in user_df.columns:
+                            user_df[col] = user_df[col].clip(lower=bounds[0], upper=bounds[1])
+                    rate_u = (user_df['cost_usd'] / user_df['usage_units'].replace(0, np.nan)).median()
+                    user_df['cost_usd'] = user_df['cost_usd'].fillna(user_df['usage_units'] * rate_u)
+
+                    # ── Step 3: Time features ────────────────────────────
+                    user_df['year']           = user_df['timestamp'].dt.year
+                    user_df['month']          = user_df['timestamp'].dt.month
+                    user_df['day']            = user_df['timestamp'].dt.day
+                    user_df['day_of_week']    = user_df['timestamp'].dt.dayofweek
+                    user_df['quarter']        = user_df['timestamp'].dt.quarter
+                    user_df['is_weekend']     = (user_df['day_of_week'] >= 5).astype(int)
+                    user_df['is_month_start'] = user_df['timestamp'].dt.is_month_start.astype(int)
+                    user_df['is_month_end']   = user_df['timestamp'].dt.is_month_end.astype(int)
+
+                    # ── Step 4: Fourier seasonality terms ───────────────
+                    user_df['fourier_weekly_sin']  = np.sin(2 * np.pi * user_df['day_of_week'] / 7)
+                    user_df['fourier_weekly_cos']  = np.cos(2 * np.pi * user_df['day_of_week'] / 7)
+                    user_df['fourier_monthly_sin'] = np.sin(2 * np.pi * user_df['day'] / 30.44)
+                    user_df['fourier_monthly_cos'] = np.cos(2 * np.pi * user_df['day'] / 30.44)
+
+                    # ── Step 5: Derived capacity features ───────────────
+                    user_df['capacity_utilization'] = user_df['usage_units'] / user_df['provisioned_capacity']
+                    user_df['headroom_units']        = user_df['provisioned_capacity'] - user_df['usage_units']
+                    user_df['wasted_capacity_cost']  = user_df['headroom_units'].clip(lower=0) * rate_u
+                    user_df['over_capacity_flag']    = (user_df['usage_units'] > user_df['provisioned_capacity']).astype(int)
+                    user_df['waste_pct']             = (user_df['headroom_units'] / user_df['provisioned_capacity']).clip(0, 1) * 100
+
+                    # ── Step 6: Lag & rolling features ──────────────────
+                    user_df = user_df.sort_values(['region','service_type','timestamp'])
+                    for lag in [1, 2, 3, 7, 14, 30]:
+                        user_df[f'lag_{lag}'] = user_df.groupby(['region','service_type'])['usage_units'].shift(lag)
+                    user_df['usage_trend_7'] = user_df['lag_1'] - user_df['lag_7']
+                    for window, lbl in [(7,'7'),(14,'14'),(30,'30')]:
+                        user_df[f'rolling_mean_{lbl}'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(window, min_periods=1).mean())
+                        user_df[f'rolling_std_{lbl}']  = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(window, min_periods=1).std())
+                    user_df['rolling_max_7'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(7, min_periods=1).max())
+                    user_df['rolling_min_7'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(7, min_periods=1).min())
+
+                    # ── Step 7: Momentum ratios ──────────────────────────
+                    eps = 1e-6
+                    user_df['momentum_3_7']  = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(3, min_periods=1).mean()) / (user_df['rolling_mean_7'] + eps)
+                    user_df['momentum_7_30'] = user_df['rolling_mean_7'] / (user_df['rolling_mean_30'] + eps)
+
+                    # ── Step 8: EWMA ──────────────────────────────────────
+                    for span, lbl in [(7,'7'),(14,'14'),(30,'30')]:
+                        user_df[f'ewma_{lbl}'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).ewm(span=span, min_periods=1).mean())
+
+                    # ── Step 9: Interaction features ─────────────────────
+                    user_df['usage_x_economic']    = user_df['usage_units'] * user_df['economic_index']
+                    user_df['capacity_x_demand']   = user_df['provisioned_capacity'] * user_df['market_demand_index']
+                    user_df['util_x_availability'] = user_df['capacity_utilization'] * user_df['availability_pct']
+
+                    # ── Step 10: Group historical anchoring ──────────────
+                    user_df['group_historical_avg'] = user_df.apply(lambda row: group_stats_u.get((row['region'], row['service_type']), 0), axis=1)
+                    user_df['deviation_from_group'] = user_df['lag_1'] - user_df['group_historical_avg']
+
+                    # ── Step 11: Spike flag & daily growth ───────────────
+                    user_df['usage_spike_flag'] = (user_df['usage_units'] > user_df['rolling_mean_7'] + 2 * user_df['rolling_std_7']).astype(int)
+                    user_df['daily_growth'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.pct_change()).fillna(0).clip(-1, 1)
+
+                    # ── Step 12: Fill NaNs from lag warm-up ─────────────
+                    lag_cols_u = [c for c in user_df.columns if c.startswith(('lag_','rolling_','ewma_','momentum_')) or c in ('usage_trend_7','deviation_from_group')]
+                    user_df[lag_cols_u] = user_df[lag_cols_u].fillna(0)
+
+                    # ── Step 13: Encode categoricals ─────────────────────
+                    user_enc = pd.get_dummies(user_df, columns=['region','service_type'], drop_first=True)
+
+                    # ── Step 14: Align with saved model feature list ──────
+                    for col in model_features:
+                        if col not in user_enc.columns:
+                            user_enc[col] = 0
+                    X_user = user_enc[model_features]
+
+                    # ── Step 15: Run the saved XGBoost model ─────────────
+                    user_preds = model.predict(X_user)
+                    user_preds = np.clip(user_preds, 0, user_preds.max() * 1.5)
+
+                # ── Build Results DataFrame ───────────────────────────────
+                results_user = user_df[['timestamp','region','service_type',
+                                        'usage_units','provisioned_capacity']].copy()
+                results_user['predicted_usage']  = user_preds.round(2)
+                results_user['prediction_error'] = (results_user['predicted_usage'] - results_user['usage_units']).round(2)
+                results_user['error_pct']        = ((results_user['prediction_error'].abs() / results_user['usage_units'].replace(0, np.nan)) * 100).round(2)
+
+                # ── Summary KPIs ──────────────────────────────────────────
+                st.markdown('<div class="section-header">📊 PREDICTION RESULTS</div>', unsafe_allow_html=True)
+                kc = st.columns(4)
+                kc[0].markdown(kpi_card("Rows Predicted", f"{len(results_user):,}", "From uploaded file"), unsafe_allow_html=True)
+                kc[1].markdown(kpi_card("Avg Predicted Usage", f"{user_preds.mean():,.1f}", "Across all rows"), unsafe_allow_html=True)
+                kc[2].markdown(kpi_card("Min Prediction", f"{user_preds.min():,.1f}", "Lowest forecast"), unsafe_allow_html=True)
+                kc[3].markdown(kpi_card("Max Prediction", f"{user_preds.max():,.1f}", "Highest forecast"), unsafe_allow_html=True)
+
+                # ── Actual vs Predicted Chart ─────────────────────────────
+                fig_u = go.Figure()
+                fig_u.add_trace(go.Scatter(x=results_user['timestamp'], y=results_user['usage_units'],
+                    mode='lines', name='Actual Usage', line=dict(color='#38bdf8', width=2.5)))
+                fig_u.add_trace(go.Scatter(x=results_user['timestamp'], y=results_user['predicted_usage'],
+                    mode='lines', name='XGBoost Prediction', line=dict(color=ACCENT, width=2, dash='dash')))
+                fig_u.update_layout(BASE_MARGINS,
+                    title="Your Uploaded Data: Actual vs Predicted Usage",
+                    height=420, legend=dict(orientation='h', y=1.1))
+                st.plotly_chart(fig_u, use_container_width=True)
+
+                # ── Results Table ─────────────────────────────────────────
+                st.markdown('<div class="section-header">📋 DETAILED PREDICTION TABLE</div>', unsafe_allow_html=True)
+                st.dataframe(results_user.reset_index(drop=True), use_container_width=True, height=350)
+
+                # ── Download ──────────────────────────────────────────────
+                csv_out = results_user.to_csv(index=False).encode('utf-8')
+                st.download_button("⬇️ Download Predictions CSV", data=csv_out,
+                    file_name="azure_predictions_output.csv", mime='text/csv')
+
+        except Exception as e:
+            st.error(f"❌ Error: {e}")
+            st.info("Make sure your CSV has the correct columns and valid data. Expand the info box above for details.")
+    else:
+        st.info("⬆️ Upload a CSV file above. Preprocessing and predictions happen automatically using the trained XGBoost model.")
+
+    st.markdown("---")
     st.markdown('<div class="section-header">MODEL ACCURACY & PERFORMANCE</div>', unsafe_allow_html=True)
 
     # --- Prepare train/test split & predictions ---
