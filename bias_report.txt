@@ -1,0 +1,63 @@
+FORECAST BIAS DIAGNOSTIC REPORT
+============================================================
+
+1. OVERALL BIAS
+   Bias: -0.2916
+   Median residual: -0.1683
+   Std residuals: 1.7242
+   Bias/Std ratio: 0.1692
+
+2. DISTRIBUTION SHIFT
+   Train mean: 271.8628
+   Test mean: 281.873
+   Shift: 10.0102
+
+3. IQR CLIPPING
+   Bounds: [-162.16, 704.75]
+   Test rows AT upper bound: 0
+   Test rows near upper bound: 0/1104
+
+4. PREDICTION CLIPPING
+   Clip ceiling: 749.56
+   Preds clipped: 0
+   Bias without clipping: -0.2916
+
+5. MODEL PARAMS
+   n_estimators: 2000
+   max_depth: 6
+   learning_rate: 0.005
+   reg_alpha: 0.5
+   reg_lambda: 3
+
+6. MONTHLY BIAS
+       mean_actual   mean_pred      bias    n
+month                                        
+7       291.429691  291.277985 -0.151722  186
+8       281.823494  281.552551 -0.270923  186
+9       292.861054  292.403107 -0.457944  180
+10      281.348263  281.011841 -0.336426  186
+11      273.559585  273.286591 -0.272989  180
+12      270.302402  270.037750 -0.264639  186
+
+7. RESIDUAL PERCENTILES
+   P5: -2.8859
+   P25: -1.0506
+   P50: -0.1683
+   P75: 0.6542
+   P95: 1.9876
+
+8. BIAS BY SERVICE TYPE
+   service_type_Storage: -0.4027 (n=552)
+
+============================================================
+ROOT CAUSE VERDICT
+============================================================
+  Bias = -0.2916 units
+  Mean actual = 281.87 units
+  Bias as pct of mean: -0.1035%
+
+  VERDICT: PRACTICALLY NEGLIGIBLE (< 1% of mean)
+
+  CONTRIBUTING FACTOR - Distribution Shift:
+  Test period (Jul-Dec) has slightly higher usage than train (Jan-Jun)
+  Model learned training center, causing slight systematic under-prediction

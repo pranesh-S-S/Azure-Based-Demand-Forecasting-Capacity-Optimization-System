@@ -1,0 +1,85 @@
+{
+  "overall_metrics": {
+    "bias": -0.291647,
+    "median_residual": -0.16826,
+    "std_residuals": 1.724154,
+    "bias_std_ratio": 0.169154,
+    "train_mean": 271.8628,
+    "test_mean": 281.873,
+    "distribution_shift": 10.0102,
+    "bias_pct_of_mean": -0.1035,
+    "iqr_lower_bound": -162.16,
+    "iqr_upper_bound": 704.75,
+    "test_at_upper_bound": 0,
+    "test_near_upper_bound": 0,
+    "clip_ceiling": 749.56,
+    "preds_clipped_above": 0,
+    "bias_without_clipping": -0.291647,
+    "n_estimators": 2000,
+    "max_depth": 6,
+    "learning_rate": 0.005,
+    "reg_alpha": 0.5,
+    "reg_lambda": 3,
+    "subsample": 0.85,
+    "colsample_bytree": 0.9,
+    "residual_P5": -2.8859,
+    "residual_P25": -1.0506,
+    "residual_P50": -0.1683,
+    "residual_P75": 0.6542,
+    "residual_P95": 1.9876
+  },
+  "monthly_bias": {
+    "7": {
+      "mean_actual": 291.4297,
+      "mean_pred": 291.27801513671875,
+      "bias": -0.1517,
+      "n": 186
+    },
+    "8": {
+      "mean_actual": 281.8235,
+      "mean_pred": 281.5526123046875,
+      "bias": -0.2709,
+      "n": 186
+    },
+    "9": {
+      "mean_actual": 292.8611,
+      "mean_pred": 292.4031066894531,
+      "bias": -0.4579,
+      "n": 180
+    },
+    "10": {
+      "mean_actual": 281.3483,
+      "mean_pred": 281.0118103027344,
+      "bias": -0.3364,
+      "n": 186
+    },
+    "11": {
+      "mean_actual": 273.5596,
+      "mean_pred": 273.2865905761719,
+      "bias": -0.273,
+      "n": 180
+    },
+    "12": {
+      "mean_actual": 270.3024,
+      "mean_pred": 270.0378112792969,
+      "bias": -0.2646,
+      "n": 186
+    }
+  },
+  "service_type_bias": {
+    "service_type_Storage": {
+      "bias": -0.4027,
+      "n": 552
+    }
+  },
+  "region_bias": {
+    "region_southeast-asia": {
+      "bias": -0.2961,
+      "n": 368
+    },
+    "region_west-europe": {
+      "bias": -0.312,
+      "n": 368
+    }
+  }
+}
