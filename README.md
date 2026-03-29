@@ -94,5 +94,4 @@ Please ensure your code follows the project's style guidelines and includes test
 
 This project is licensed under the LICENSE License.
 
----
-*This README was generated with ❤️ by ReadmeBuddy*
+
