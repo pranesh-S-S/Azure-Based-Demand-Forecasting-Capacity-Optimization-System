@@ -13,6 +13,10 @@ import os
 import warnings
 warnings.filterwarnings("ignore")
 
+# ── Theme State ───────────────────────────────────────────────────────────
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'Dark'
+
 # ── Page Config ──────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Azure Capacity Intelligence",
@@ -21,68 +25,85 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS ───────────────────────────────────────────────────────────
-st.markdown("""
+# ── Theme CSS ─────────────────────────────────────────────────────────────
+def get_theme_css(is_light: bool) -> str:
+    if is_light:
+        return """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-
 .main .block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1400px; }
 
-/* Global Animations */
+/* ── LIGHT THEME OVERRIDES ── */
+.stApp {
+    background-color: #F1F5F9 !important;
+}
+[data-testid="stAppViewContainer"] > .main {
+    background-color: #F1F5F9 !important;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background-color: #FFFFFF !important;
+    border-right: 1px solid #E2E8F0 !important;
+    box-shadow: 2px 0 12px rgba(15,23,42,0.06) !important;
+}
+[data-testid="stSidebar"] .stMarkdown h1,
+[data-testid="stSidebar"] .stMarkdown h2,
+[data-testid="stSidebar"] .stMarkdown h3 {
+    background: linear-gradient(135deg, #FF6B35, #EA580C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+[data-testid="stSidebar"] * { color: #1E293B !important; }
+[data-testid="stSidebar"] .stMarkdown h1,
+[data-testid="stSidebar"] .stMarkdown h2,
+[data-testid="stSidebar"] .stMarkdown h3 { color: transparent !important; }
+
+/* Global text */
+.stApp, .stApp * { color: #1E293B; }
+
+/* Main header area */
+h1, h2, h3 { color: #0F172A !important; }
+p, span, div { color: #334155; }
+
+/* Global animations */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 div[data-testid="stVerticalBlock"] > div {
     animation: fadeIn 0.4s ease-out forwards;
 }
 
-/* Sidebar Glassmorphism */
-[data-testid="stSidebar"] {
-    background: rgba(10, 15, 26, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-right: 1px solid rgba(255,107,53,0.15);
-}
-[data-testid="stSidebar"] .stMarkdown h1,
-[data-testid="stSidebar"] .stMarkdown h2,
-[data-testid="stSidebar"] .stMarkdown h3 { 
-    background: linear-gradient(135deg, #FF6B35, #fbbf24);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    font-weight: 800;
-}
-
-/* Glassmorphism KPI Cards */
+/* KPI Cards */
 .kpi-card {
-    background: rgba(26, 31, 46, 0.6);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-top: 1px solid rgba(255,255,255,0.15);
-    border-radius: 12px;
-    padding: 12px 14px; /* Reduced padding */
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-top: 3px solid #FF6B35;
+    border-radius: 14px;
+    padding: 14px 16px;
     margin: 6px 0;
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    min-height: 100px; /* Ensure uniform height and prevent crushing */
+    box-shadow: 0 2px 8px rgba(15,23,42,0.06);
+    min-height: 100px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
 .kpi-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 30px rgba(0,0,0,0.4), 0 0 15px rgba(255,107,53,0.15);
-    border-color: rgba(255,107,53,0.4);
+    box-shadow: 0 12px 28px rgba(15,23,42,0.12), 0 0 0 2px rgba(255,107,53,0.2);
+    border-top-color: #EA580C;
 }
 .kpi-label {
-    font-size: 0.6rem; /* Reduced font size */
+    font-size: 0.6rem;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
-    color: #94a3b8;
+    color: #64748B !important;
     margin-bottom: 4px;
     display: flex;
     justify-content: space-between;
@@ -91,24 +112,23 @@ div[data-testid="stVerticalBlock"] > div {
     text-overflow: ellipsis;
 }
 .kpi-value {
-    font-size: 1.25rem; /* Significantly reduced to prevent overlap in columns */
+    font-size: 1.3rem;
     font-weight: 800;
-    color: #FAFAFA;
+    color: #0F172A !important;
     line-height: 1.2;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    word-wrap: break-word; /* Allow wrapping if absolutely necessary */
+    word-wrap: break-word;
 }
 .kpi-sub {
-    font-size: 0.65rem; /* Reduced font size */
-    color: #4ade80;
+    font-size: 0.65rem;
+    color: #059669 !important;
     margin-top: 4px;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.kpi-sub.warn { color: #fbbf24; }
-.kpi-sub.danger { color: #f87171; }
+.kpi-sub.warn  { color: #D97706 !important; }
+.kpi-sub.danger { color: #DC2626 !important; }
 
 /* Section headers */
 .section-header {
@@ -116,59 +136,246 @@ div[data-testid="stVerticalBlock"] > div {
     font-weight: 800;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: #FF6B35;
+    color: #FF6B35 !important;
     margin: 25px 0 10px 0;
     padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255,107,53,0.2);
+    border-bottom: 1.5px solid #E2E8F0;
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-/* Tab styling (Apple-like pills) */
+/* Tabs */
 .stTabs [data-baseweb="tab-list"] {
     gap: 8px;
-    background: rgba(15, 23, 42, 0.5);
+    background: #FFFFFF;
     border-radius: 12px;
     padding: 6px;
-    border: 1px solid rgba(255,255,255,0.05);
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 1px 4px rgba(15,23,42,0.05);
 }
 .stTabs [data-baseweb="tab"] {
     border-radius: 8px;
     padding: 6px 14px;
     font-weight: 600;
     font-size: 0.8rem;
-    color: #94a3b8;
+    color: #475569 !important;
+    opacity: 1;
     transition: all 0.2s;
 }
+.stTabs [data-baseweb="tab"]:hover { background: #F1F5F9 !important; }
 .stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, #FF6B35, #e55a2b) !important;
+    background: linear-gradient(135deg, #FF6B35, #EA580C) !important;
     color: white !important;
-    box-shadow: 0 4px 10px rgba(255,107,53,0.3);
+    box-shadow: 0 4px 12px rgba(255,107,53,0.35);
 }
 
-/* Glassmorphism Plotly container */
+/* Plotly charts */
 [data-testid="stPlotlyChart"] {
-    background: rgba(26, 31, 46, 0.4);
-    backdrop-filter: blur(8px);
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.06);
+    background: #FFFFFF !important;
+    border-radius: 14px;
+    border: 1px solid #E2E8F0;
     padding: 10px;
     transition: all 0.3s;
     margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(15,23,42,0.05);
 }
 [data-testid="stPlotlyChart"]:hover {
-    border-color: rgba(255,255,255,0.15);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    border-color: #CBD5E1;
+    box-shadow: 0 8px 24px rgba(15,23,42,0.09);
+}
+
+/* Inputs, selects, sliders */
+[data-testid="stMultiSelect"] > div,
+[data-testid="stSelectbox"] > div {
+    background: #F8FAFC !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 8px !important;
+    color: #1E293B !important;
+}
+.stSlider [data-baseweb="slider"] div[role="slider"] {
+    background: #FF6B35 !important;
+}
+
+/* Info / warning boxes */
+[data-testid="stAlert"] {
+    background: #EFF6FF !important;
+    border: 1px solid #BFDBFE !important;
+    border-radius: 10px !important;
+    color: #1E40AF !important;
+}
+
+/* Dataframe */
+[data-testid="stDataFrame"] {
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 12px !important;
 }
 
 /* Download button */
+.stDownloadButton button {
+    background: rgba(255,107,53,0.08) !important;
+    border: 1.5px solid rgba(255,107,53,0.6) !important;
+    color: #C2410C !important;
+    transition: all 0.2s;
+    font-size: 0.8rem !important;
+    padding: 4px 12px !important;
+    border-radius: 8px !important;
+}
+.stDownloadButton button:hover {
+    background: rgba(255,107,53,0.18) !important;
+    box-shadow: 0 0 12px rgba(255,107,53,0.25) !important;
+}
+
+/* Tag chips in multiselect */
+[data-baseweb="tag"] {
+    background-color: #FF6B35 !important;
+    color: white !important;
+}
+
+footer { visibility: hidden; }
+.stDeployButton { display: none; }
+</style>
+"""
+    else:
+        return """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+.main .block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1400px; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+div[data-testid="stVerticalBlock"] > div {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+[data-testid="stSidebar"] {
+    background-color: var(--secondary-background-color) !important;
+    border-right: 1px solid rgba(150,150,150,0.1);
+}
+[data-testid="stSidebar"] .stMarkdown h1,
+[data-testid="stSidebar"] .stMarkdown h2,
+[data-testid="stSidebar"] .stMarkdown h3 {
+    background: linear-gradient(135deg, #FF6B35, #F59E0B);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+
+.kpi-card {
+    background: var(--secondary-background-color);
+    border: 1px solid rgba(150,150,150,0.1);
+    border-top: 2px solid var(--primary-color);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin: 6px 0;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.08), 0 0 12px rgba(255,107,53,0.15);
+    border-color: rgba(255,107,53,0.4);
+}
+.kpi-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-color);
+    opacity: 0.65;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.kpi-value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-color);
+    line-height: 1.2;
+    word-wrap: break-word;
+}
+.kpi-sub {
+    font-size: 0.65rem;
+    color: #10B981;
+    margin-top: 4px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.kpi-sub.warn   { color: #F59E0B; }
+.kpi-sub.danger { color: #EF4444; }
+
+.section-header {
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--primary-color);
+    margin: 25px 0 10px 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(150,150,150,0.15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+    background: var(--secondary-background-color);
+    border-radius: 12px;
+    padding: 6px;
+    border: 1px solid rgba(150,150,150,0.1);
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-color);
+    opacity: 0.7;
+    transition: all 0.2s;
+}
+.stTabs [data-baseweb="tab"]:hover { opacity: 1; }
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, #FF6B35, #e55a2b) !important;
+    color: white !important;
+    opacity: 1;
+    box-shadow: 0 4px 10px rgba(255,107,53,0.3);
+}
+
+[data-testid="stPlotlyChart"] {
+    background: var(--secondary-background-color);
+    border-radius: 12px;
+    border: 1px solid rgba(150,150,150,0.1);
+    padding: 10px;
+    transition: all 0.3s;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+}
+[data-testid="stPlotlyChart"]:hover {
+    border-color: rgba(150,150,150,0.3);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+}
+
 .stDownloadButton button {
     background: rgba(255,107,53,0.1) !important;
     border: 1px solid rgba(255,107,53,0.5) !important;
     color: #FF6B35 !important;
     transition: all 0.2s;
-    font-size: 0.8rem !important; /* Smaller text on button */
+    font-size: 0.8rem !important;
     padding: 4px 12px !important;
 }
 .stDownloadButton button:hover {
@@ -176,28 +383,17 @@ div[data-testid="stVerticalBlock"] > div {
     box-shadow: 0 0 10px rgba(255,107,53,0.3) !important;
 }
 
-/* Hide default streamlit footer */
 footer { visibility: hidden; }
 .stDeployButton { display: none; }
 </style>
-""", unsafe_allow_html=True)
+"""
 
-# ── Plotly Dark Template ─────────────────────────────────────────────────
-PLOTLY_TEMPLATE = dict(
-    layout=go.Layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(26,31,46,0.5)",
-        font=dict(family="Inter", color="#c9d1d9", size=10), # Reduced global plotly font
-        title=dict(font=dict(size=14, color="#FAFAFA")), # Smaller titles
-        xaxis=dict(gridcolor="rgba(255,255,255,0.05)", zerolinecolor="rgba(255,255,255,0.05)", title_font=dict(size=11), tickfont=dict(size=10)),
-        yaxis=dict(gridcolor="rgba(255,255,255,0.05)", zerolinecolor="rgba(255,255,255,0.05)", title_font=dict(size=11), tickfont=dict(size=10)),
-        colorway=["#FF6B35","#4ade80","#38bdf8","#a78bfa","#fb923c","#f472b6","#34d399","#fbbf24"],
-        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10), itemsizing="constant"),
-        margin=dict(l=40, r=40, t=60, b=40), # Increased margins to prevent overlap
-        hoverlabel=dict(bgcolor="#1a1f2e", font_size=11, font_color="#FAFAFA"),
-        autosize=True
-    )
-)
+IS_LIGHT = st.session_state.theme == 'Light'
+st.markdown(get_theme_css(IS_LIGHT), unsafe_allow_html=True)
+
+# ── Plotly Base Margins ──────────────────────────────────────────────────
+BASE_MARGINS = dict(margin=dict(l=40, r=40, t=60, b=40))
+
 
 ACCENT = "#FF6B35"
 COLORS = ["#FF6B35","#4ade80","#38bdf8","#a78bfa","#fb923c","#f472b6","#34d399","#fbbf24"]
@@ -348,8 +544,28 @@ model, model_features = load_model()
 # ── Sidebar ──────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## 💎 Azure Capacity Intel")
-    st.markdown("---")
 
+    # ── Theme Toggle ──────────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("**🎨 Theme**")
+    col_dark, col_light = st.columns(2)
+    with col_dark:
+        dark_style = "background:linear-gradient(135deg,#1E293B,#0F172A);color:white;border:2px solid #FF6B35;" if st.session_state.theme == 'Dark' else "background:#1E293B;color:#94A3B8;border:2px solid transparent;"
+        if st.button("🌙 Dark", key="btn_dark", use_container_width=True):
+            st.session_state.theme = 'Dark'
+            st.rerun()
+    with col_light:
+        light_style = "background:linear-gradient(135deg,#F1F5F9,#E2E8F0);color:#0F172A;border:2px solid #FF6B35;" if st.session_state.theme == 'Light' else "background:#E2E8F0;color:#64748B;border:2px solid transparent;"
+        if st.button("☀️ Light", key="btn_light", use_container_width=True):
+            st.session_state.theme = 'Light'
+            st.rerun()
+    # Active theme badge
+    if st.session_state.theme == 'Dark':
+        st.markdown("<p style='text-align:center;font-size:0.7rem;color:#94A3B8;margin-top:2px;'>🌙 Dark mode active</p>", unsafe_allow_html=True)
+    else:
+        st.markdown("<p style='text-align:center;font-size:0.7rem;color:#64748B;margin-top:2px;'>☀️ Light mode active</p>", unsafe_allow_html=True)
+
+    st.markdown("---")
     st.markdown("**Regions**")
     all_regions = sorted(df_raw['region'].unique())
     sel_regions = st.multiselect("Select Regions", all_regions, default=all_regions, label_visibility="collapsed")
@@ -401,8 +617,8 @@ head_col1, head_col2 = st.columns([3, 1])
 with head_col1:
     st.markdown("""
     <h1 style='font-size:2rem;font-weight:800;letter-spacing:2px;
-    color:#FAFAFA;margin-bottom:0;'>AZURE CAPACITY INTELLIGENCE</h1>
-    <p style='color:#8892a4;font-size:0.9rem;margin-top:4px;'>
+    color:var(--text-color);margin-bottom:0;'>AZURE CAPACITY INTELLIGENCE</h1>
+    <p style='color:rgba(136,146,164,0.8);font-size:0.9rem;margin-top:4px;'>
     Milestone 4 · Forecast Integration & Capacity Planning Dashboard</p>
     """, unsafe_allow_html=True)
     st.info("ℹ️ **Data Glossary:** 'Usage Units' is observed compute. 'Provisioned Capacity' is total allocated limits. 'Risk Events' trigger when Usage > Threshold (85% default).")
@@ -466,7 +682,7 @@ with tab1:
         fig = px.pie(cost_by_svc, values='cost_usd', names='service_type',
                      title="Cost Efficiency Breakdown", hole=0.45,
                      color_discrete_sequence=COLORS)
-        fig.update_layout(PLOTLY_TEMPLATE['layout'])
+        fig.update_layout(BASE_MARGINS)
         fig.update_traces(textinfo='label+percent', textfont_size=13)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -475,10 +691,10 @@ with tab1:
             total_cost=('cost_usd','sum'), wasted=('wasted_capacity_cost','sum')).reset_index()
         fig = go.Figure()
         fig.add_trace(go.Bar(x=monthly['timestamp'], y=monthly['total_cost'],
-                             name='Total Cost', marker_color='#38bdf8'))
+                             name='Total Cost', marker_color='#3b82f6'))
         fig.add_trace(go.Bar(x=monthly['timestamp'], y=monthly['wasted'],
-                             name='Wasted Capacity', marker_color='#f87171'))
-        fig.update_layout(PLOTLY_TEMPLATE['layout'], title="Monthly Cost vs Wasted Capacity",
+                             name='Wasted Capacity', marker_color='#ef4444'))
+        fig.update_layout(BASE_MARGINS, title="Monthly Cost vs Wasted Capacity",
                           barmode='group', legend=dict(orientation='h', yanchor='bottom', y=1.05, xanchor='right', x=1))
         st.plotly_chart(fig, use_container_width=True)
 
@@ -490,7 +706,7 @@ with tab1:
                            color_discrete_sequence=[ACCENT])
         fig.add_vline(x=util_threshold, line_dash="dash", line_color="#f87171",
                       annotation_text=f"Risk Threshold ({util_threshold:.0%})")
-        fig.update_layout(PLOTLY_TEMPLATE['layout'])
+        fig.update_layout(BASE_MARGINS)
         st.plotly_chart(fig, use_container_width=True)
 
     with c2:
@@ -498,7 +714,7 @@ with tab1:
         fig = px.bar(cost_region, x='cost_usd', y='region', orientation='h',
                      title="Top Regions by Total Cost",
                      color_discrete_sequence=[ACCENT])
-        fig.update_layout(PLOTLY_TEMPLATE['layout'])
+        fig.update_layout(BASE_MARGINS)
         st.plotly_chart(fig, use_container_width=True)
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -519,7 +735,7 @@ with tab2:
     fig = px.line(monthly_trend, x='timestamp', y=sel_metric, color=group_by,
                   title=f"Monthly Avg {sel_metric_label} by {group_by.replace('_',' ').title()}",
                   color_discrete_sequence=COLORS)
-    fig.update_layout(PLOTLY_TEMPLATE['layout'], height=420)
+    fig.update_layout(BASE_MARGINS, height=420)
     fig.update_traces(line=dict(width=2.5))
     st.plotly_chart(fig, use_container_width=True)
 
@@ -530,7 +746,7 @@ with tab2:
         fig = px.bar(growth, x='timestamp', y='daily_growth',
                      title="Avg Daily Growth Rate (%)",
                      color_discrete_sequence=['#38bdf8'])
-        fig.update_layout(PLOTLY_TEMPLATE['layout'])
+        fig.update_layout(BASE_MARGINS)
         st.plotly_chart(fig, use_container_width=True)
 
     with c2:
@@ -543,7 +759,7 @@ with tab2:
                      color='day_name', color_discrete_sequence=COLORS)
         fig.add_hline(y=1.0, line_dash="dash", line_color="#8892a4",
                       annotation_text="Baseline")
-        fig.update_layout(PLOTLY_TEMPLATE['layout'], showlegend=False)
+        fig.update_layout(BASE_MARGINS, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
 
     # ── Rolling Statistics ──
@@ -561,7 +777,7 @@ with tab2:
         mode='lines', line=dict(color='#38bdf8', width=2.5), name='30-Day Rolling Mean'))
     fig.add_trace(go.Scatter(x=ts_agg['timestamp'], y=ts_agg['actual'],
         mode='lines', line=dict(color='#a78bfa', width=1), name='Actual Usage', opacity=0.6))
-    fig.update_layout(PLOTLY_TEMPLATE['layout'],
+    fig.update_layout(BASE_MARGINS,
         title="Usage Units: Actual vs 30-Day Rolling Mean (±1σ)", height=400,
         legend=dict(orientation='h', yanchor='bottom', y=1.05, xanchor='right', x=1))
     st.plotly_chart(fig, use_container_width=True)
@@ -586,7 +802,7 @@ with tab3:
                      title="Regions: Utilization vs Waste % (bubble = cost, color = risk events)",
                      color_continuous_scale='YlOrRd', size_max=55,
                      labels={'avg_util':'Avg Utilization (%)','waste_pct':'Waste % of Total Cost'})
-    fig.update_layout(PLOTLY_TEMPLATE['layout'], height=480)
+    fig.update_layout(BASE_MARGINS, height=480)
     fig.add_hline(y=reg['waste_pct'].median(), line_dash="dot", line_color="rgba(255,255,255,0.2)",
                   annotation_text="Median Waste %")
     fig.add_vline(x=util_threshold*100, line_dash="dot", line_color="#f87171",
@@ -599,7 +815,7 @@ with tab3:
         fig = px.bar(wasted_reg, x='wasted_capacity_cost', y='region', orientation='h',
                      title="Top 10 Regions by Wasted Capacity ($)",
                      color_discrete_sequence=['#f87171'])
-        fig.update_layout(PLOTLY_TEMPLATE['layout'])
+        fig.update_layout(BASE_MARGINS)
         st.plotly_chart(fig, use_container_width=True)
 
     with c2:
@@ -607,7 +823,7 @@ with tab3:
         fig = px.bar(risk_reg, x='over_capacity_flag', y='region', orientation='h',
                      title="Top 10 Regions by Capacity Risk Events",
                      color_discrete_sequence=['#fb923c'])
-        fig.update_layout(PLOTLY_TEMPLATE['layout'])
+        fig.update_layout(BASE_MARGINS)
         st.plotly_chart(fig, use_container_width=True)
 
     # Heatmap: region × month utilization
@@ -617,7 +833,7 @@ with tab3:
     fig = px.imshow(heat_pivot, title="Avg Utilization by Region × Month",
                     color_continuous_scale='YlOrRd', aspect='auto',
                     labels=dict(x="Month", y="Region", color="Utilization"))
-    fig.update_layout(PLOTLY_TEMPLATE['layout'], height=400)
+    fig.update_layout(BASE_MARGINS, height=400)
     st.plotly_chart(fig, use_container_width=True)
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -720,7 +936,7 @@ with tab4:
                          title="Predictions Within Tolerance Bands",
                          color='Tolerance',
                          color_discrete_sequence=['#4ade80','#38bdf8','#fbbf24'])
-            fig.update_layout(PLOTLY_TEMPLATE['layout'], showlegend=False)
+            fig.update_layout(BASE_MARGINS, showlegend=False)
             fig.update_traces(text=[f"{v:.1f}%" for v in tol_data['Predictions (%)']],
                               textposition='outside', textfont_size=14)
             st.plotly_chart(fig, use_container_width=True)
@@ -733,7 +949,7 @@ with tab4:
                                color_discrete_sequence=[ACCENT])
             fig.add_vline(x=5, line_dash="dash", line_color="#4ade80", annotation_text="5%")
             fig.add_vline(x=10, line_dash="dash", line_color="#38bdf8", annotation_text="10%")
-            fig.update_layout(PLOTLY_TEMPLATE['layout'])
+            fig.update_layout(BASE_MARGINS)
             st.plotly_chart(fig, use_container_width=True)
 
         with c3:
@@ -742,13 +958,13 @@ with tab4:
             fig = go.Figure(go.Indicator(
                 mode="gauge+number+delta",
                 value=nrmse,
-                number={'suffix': '', 'font': {'size': 36, 'color': '#FAFAFA'}},
+                number={'suffix': '', 'font': {'size': 36, 'color': 'var(--text-color)'}},
                 delta={'reference': 0.10, 'increasing': {'color': '#f87171'}, 'decreasing': {'color': '#4ade80'}},
-                title={'text': 'NRMSE (Normalized RMSE)', 'font': {'size': 14, 'color': '#c9d1d9'}},
+                title={'text': 'NRMSE (Normalized RMSE)', 'font': {'size': 14, 'color': 'gray'}},
                 gauge={
                     'axis': {'range': [0, 0.5], 'tickcolor': '#8892a4', 'tickfont': {'size': 10, 'color': '#8892a4'}},
                     'bar': {'color': nrmse_color, 'thickness': 0.6},
-                    'bgcolor': 'rgba(26,31,46,0.5)',
+                    'bgcolor': 'rgba(0,0,0,0)',
                     'borderwidth': 1,
                     'bordercolor': 'rgba(255,255,255,0.08)',
                     'steps': [
@@ -764,7 +980,7 @@ with tab4:
                 }
             ))
             fig.update_layout(
-                PLOTLY_TEMPLATE['layout'],
+                BASE_MARGINS,
                 title="NRMSE Quality Gauge",
                 height=320,
                 annotations=[
@@ -795,7 +1011,7 @@ with tab4:
             fig.add_trace(go.Scatter(x=ts_test, y=preds,
                 mode='lines', name='XGBoost Prediction', line=dict(color=ACCENT, width=2, dash='dash')))
                 
-        fig.update_layout(PLOTLY_TEMPLATE['layout'],
+        fig.update_layout(BASE_MARGINS,
             title=f"Forecast vs Actual - Displaying: {display_mode}", height=420,
             legend=dict(orientation='h', y=1.1))
         st.plotly_chart(fig, use_container_width=True)
@@ -808,7 +1024,7 @@ with tab4:
                      title="Top 20 Feature Importances (XGBoost)",
                      labels={'x':'Importance','y':'Feature'},
                      color_discrete_sequence=[ACCENT])
-        fig.update_layout(PLOTLY_TEMPLATE['layout'], height=500)
+        fig.update_layout(BASE_MARGINS, height=500)
         st.plotly_chart(fig, use_container_width=True)
 
         # --- Residuals Scatter ---
@@ -820,7 +1036,7 @@ with tab4:
                              labels={'x':'Predicted','y':'Residual'},
                              color_discrete_sequence=['#a78bfa'], opacity=0.5)
             fig.add_hline(y=0, line_color='#f87171', line_dash='dash')
-            fig.update_layout(PLOTLY_TEMPLATE['layout'])
+            fig.update_layout(BASE_MARGINS)
             st.plotly_chart(fig, use_container_width=True)
 
         with c2:
@@ -832,7 +1048,7 @@ with tab4:
             max_v = max(y_test_vals.max(), preds.max())
             fig.add_trace(go.Scatter(x=[min_v, max_v], y=[min_v, max_v],
                 mode='lines', line=dict(color='#f87171', dash='dash'), name='Perfect'))
-            fig.update_layout(PLOTLY_TEMPLATE['layout'])
+            fig.update_layout(BASE_MARGINS)
             st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("No test data available after the split date for accuracy evaluation.")
@@ -868,8 +1084,8 @@ with tab5:
     risk_timeline = df.set_index('timestamp').resample('W')['over_capacity_flag'].sum().reset_index()
     fig = go.Figure()
     fig.add_trace(go.Bar(x=risk_timeline['timestamp'], y=risk_timeline['over_capacity_flag'],
-                         name='Risk Events', marker_color='#f87171'))
-    fig.update_layout(PLOTLY_TEMPLATE['layout'],
+                         name='Risk Events', marker_color='#ef4444'))
+    fig.update_layout(BASE_MARGINS,
         title="Weekly Capacity Risk Events", height=350)
     st.plotly_chart(fig, use_container_width=True)
 
