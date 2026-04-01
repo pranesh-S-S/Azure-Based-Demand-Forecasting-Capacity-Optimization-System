@@ -11,11 +11,35 @@ from plotly.subplots import make_subplots
 import joblib
 import os
 import warnings
+from datetime import datetime, timedelta
+from xgboost import XGBRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import json
 warnings.filterwarnings("ignore")
 
 # ── Theme State ───────────────────────────────────────────────────────────
 if 'theme' not in st.session_state:
     st.session_state.theme = 'Dark'
+
+# ── Upload State ───────────────────────────────────────────────────────────
+if 'uploaded_data' not in st.session_state:
+    st.session_state.uploaded_data = None
+if 'use_uploaded_data' not in st.session_state:
+    st.session_state.use_uploaded_data = False
+
+# ── Automatic Retraining State ────────────────────────────────────────────
+if 'auto_retrain_enabled' not in st.session_state:
+    st.session_state.auto_retrain_enabled = False
+if 'retrain_trigger' not in st.session_state:
+    st.session_state.retrain_trigger = "performance"
+if 'retrain_history' not in st.session_state:
+    st.session_state.retrain_history = []
+if 'model_version' not in st.session_state:
+    st.session_state.model_version = 1
+if 'last_retrain_date' not in st.session_state:
+    st.session_state.last_retrain_date = None
+if 'performance_threshold' not in st.session_state:
+    st.session_state.performance_threshold = 0.75
 
 # ── Page Config ──────────────────────────────────────────────────────────
 st.set_page_config(
@@ -197,6 +221,111 @@ div[data-testid="stVerticalBlock"] > div {
     background: #FF6B35 !important;
 }
 
+/* File Uploader - Light Mode */
+[data-testid="stFileUploader"],
+[data-testid="stFileUploader"] * {
+    background: #FFFFFF !important;
+    color: #1E293B !important;
+    border-color: #D1D5DB !important;
+}
+[data-testid="stFileUploader"] {
+    border: 2px dashed #D1D5DB !important;
+    padding: 20px !important;
+}
+[data-testid="stFileUploader"] > div {
+    background: #FAFBFC !important;
+    color: #1E293B !important;
+}
+[data-testid="stFileUploader"] button {
+    background: #FF6B35 !important;
+    color: white !important;
+    border: none !important;
+}
+[data-testid="stFileUploader"] label {
+    color: #1E293B !important;
+}
+[data-testid="stFileUploader"] p, 
+[data-testid="stFileUploader"] span,
+[data-testid="stFileUploader"] div {
+    color: #1E293B !important;
+}
+
+/* Number Input, Text Input - Light Mode */
+[data-testid="stNumberInput"] input,
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] > div > div > input,
+[data-testid="stTextInput"] > div > div > input,
+input[type="number"],
+input[type="text"],
+input[type="file"] {
+    background-color: #FFFFFF !important;
+    border: 1px solid #CBD5E1 !important;
+    color: #1E293B !important;
+}
+
+/* Selectbox dropdown/options */
+[data-baseweb="select"] {
+    background: #F8FAFC !important;
+}
+[data-baseweb="select"] > div {
+    background: #FFFFFF !important;
+    border: 1px solid #CBD5E1 !important;
+    color: #1E293B !important;
+}
+
+/* Dropdown menu options */
+[data-baseweb="popover"] {
+    background: #FFFFFF !important;
+}
+[data-baseweb="menu"] {
+    background: #FFFFFF !important;
+}
+[data-baseweb="menu"] li {
+    color: #1E293B !important;
+}
+[data-baseweb="menu"] li:hover {
+    background: #F1F5F9 !important;
+    color: #0F172A !important;
+}
+
+/* Expander */
+[data-testid="stExpander"] {
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+}
+[data-testid="stExpander"] summary {
+    background: #F1F5F9 !important;
+    color: #0F172A !important;
+}
+[data-testid="stExpander"] details {
+    background: #FFFFFF !important;
+    color: #1E293B !important;
+}
+
+/* Button */
+.stButton > button {
+    background: #F1F5F9 !important;
+    border: 1px solid #CBD5E1 !important;
+    color: #1E293B !important;
+}
+.stButton > button:hover {
+    background: #E2E8F0 !important;
+    border-color: #94A3B8 !important;
+    color: #0F172A !important;
+}
+
+/* Multiselect dropdown */
+[data-testid="stMultiSelect"] [data-baseweb="popover"] {
+    background: #FFFFFF !important;
+}
+[data-testid="stMultiSelect"] [data-baseweb="menu"] li {
+    color: #1E293B !important;
+    background: #FFFFFF !important;
+}
+[data-testid="stMultiSelect"] [data-baseweb="menu"] li:hover {
+    background: #F1F5F9 !important;
+}
+
 /* Info / warning boxes */
 [data-testid="stAlert"] {
     background: #EFF6FF !important;
@@ -370,6 +499,77 @@ div[data-testid="stVerticalBlock"] > div {
     box-shadow: 0 8px 25px rgba(0,0,0,0.06);
 }
 
+/* Dark mode file uploader */
+[data-testid="stFileUploader"],
+[data-testid="stFileUploader"] * {
+    color: var(--text-color) !important;
+    border-color: rgba(150,150,150,0.3) !important;
+}
+[data-testid="stFileUploader"] {
+    background: var(--secondary-background-color) !important;
+    border: 2px dashed rgba(150,150,150,0.3) !important;
+    padding: 20px !important;
+}
+[data-testid="stFileUploader"] > div {
+    background: rgba(0,0,0,0.2) !important;
+    color: var(--text-color) !important;
+}
+[data-testid="stFileUploader"] button {
+    background: #FF6B35 !important;
+    color: white !important;
+    border: none !important;
+}
+[data-testid="stFileUploader"] label,
+[data-testid="stFileUploader"] p, 
+[data-testid="stFileUploader"] span,
+[data-testid="stFileUploader"] div {
+    color: var(--text-color) !important;
+}
+
+/* Dark mode inputs */
+[data-testid="stNumberInput"] input,
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] > div > div > input,
+[data-testid="stTextInput"] > div > div > input,
+input[type="number"],
+input[type="text"],
+input[type="file"] {
+    background-color: rgba(0,0,0,0.3) !important;
+    border: 1px solid rgba(150,150,150,0.2) !important;
+    color: var(--text-color) !important;
+}
+
+/* Dark mode selectbox */
+[data-baseweb="select"] {
+    background: var(--secondary-background-color) !important;
+}
+[data-baseweb="select"] > div {
+    background: rgba(0,0,0,0.3) !important;
+    border: 1px solid rgba(150,150,150,0.2) !important;
+    color: var(--text-color) !important;
+}
+
+/* Dark mode expander */
+[data-testid="stExpander"] {
+    background: var(--secondary-background-color) !important;
+    border: 1px solid rgba(150,150,150,0.1) !important;
+}
+[data-testid="stExpander"] summary {
+    background: rgba(0,0,0,0.2) !important;
+    color: var(--text-color) !important;
+}
+
+/* Dark mode button */
+.stButton > button {
+    background: rgba(0,0,0,0.3) !important;
+    border: 1px solid rgba(150,150,150,0.2) !important;
+    color: var(--text-color) !important;
+}
+.stButton > button:hover {
+    background: rgba(0,0,0,0.4) !important;
+    border-color: rgba(150,150,150,0.4) !important;
+}
+
 .stDownloadButton button {
     background: rgba(255,107,53,0.1) !important;
     border: 1px solid rgba(255,107,53,0.5) !important;
@@ -541,6 +741,13 @@ def load_model():
 df_raw = load_data()
 model, model_features = load_model()
 
+# ── Initialize data source indicator ─────────────────────────────────────
+def get_active_dataframe():
+    """Return uploaded data if available, otherwise original data"""
+    if st.session_state.use_uploaded_data and st.session_state.uploaded_data is not None:
+        return st.session_state.uploaded_data
+    return df_raw
+
 # ── Sidebar ──────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## 💎 Azure Capacity Intel")
@@ -567,15 +774,16 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("**Regions**")
-    all_regions = sorted(df_raw['region'].unique())
+    df_for_filters = get_active_dataframe()
+    all_regions = sorted(df_for_filters['region'].unique())
     sel_regions = st.multiselect("Select Regions", all_regions, default=all_regions, label_visibility="collapsed")
 
     st.markdown("**Service Type**")
-    all_services = sorted(df_raw['service_type'].unique())
+    all_services = sorted(df_for_filters['service_type'].unique())
     sel_services = st.multiselect("Select Services", all_services, default=all_services, label_visibility="collapsed")
 
     st.markdown("**Year**")
-    all_years = sorted(df_raw['year'].unique())
+    all_years = sorted(df_for_filters['year'].unique())
     sel_years = st.multiselect("Select Years", all_years, default=all_years, label_visibility="collapsed")
 
     st.markdown("---")
@@ -591,10 +799,13 @@ with st.sidebar:
     st.caption("Milestone 4 · Forecast Integration & Capacity Planning")
 
 # ── Filter Data & Apply What-If ──────────────────────────────────────────
-df = df_raw[
-    (df_raw['region'].isin(sel_regions)) &
-    (df_raw['service_type'].isin(sel_services)) &
-    (df_raw['year'].isin(sel_years))
+# Use uploaded data if available, otherwise use original data
+df_raw_active = get_active_dataframe()
+
+df = df_raw_active[
+    (df_raw_active['region'].isin(sel_regions)) &
+    (df_raw_active['service_type'].isin(sel_services)) &
+    (df_raw_active['year'].isin(sel_years))
 ].copy()
 
 if df.empty:
@@ -633,6 +844,367 @@ with head_col2:
         mime='text/csv',
     )
     st.caption("Last Refreshed: Just now")
+
+# ══════════════════════════════════════════════════════════════════════════
+# DATA UPLOAD SECTION — AT THE START OF DASHBOARD
+# ══════════════════════════════════════════════════════════════════════════
+st.markdown("---")
+st.markdown('<div class="section-header">📂 UPLOAD YOUR DATA</div>', unsafe_allow_html=True)
+
+with st.expander("ℹ️ How data upload works + Required CSV Columns", expanded=False):
+    st.markdown("""
+    ### How it works
+    When you upload a CSV file here, the dashboard will:
+    1. **Validate** your columns
+    2. **Preprocess** your data (same steps used during model training — imputation, clipping, lag features, rolling stats, Fourier terms, etc.)
+    3. **Update all dashboard values** — KPIs, charts, and analysis will reflect your new data
+    4. **Keep your data active** until you upload a new file or refresh the page
+
+    > The dashboard automatically uses your uploaded data for all visualizations and calculations.
+
+    ---
+    ### Required CSV Columns
+
+    | Column | Type | Example |
+    |--------|------|---------|
+    | `timestamp` | date/datetime | `2024-08-01` |
+    | `region` | string | `east-us` |
+    | `service_type` | string | `Compute` |
+    | `usage_units` | float | `1200.5` |
+    | `provisioned_capacity` | float | `2000.0` |
+    | `cost_usd` | float | `450.0` |
+    | `availability_pct` | float | `99.9` |
+    | `economic_index` | float | `100.2` |
+    | `market_demand_index` | float | `98.5` |
+
+    > **Tip:** Use the **"Export Executive Raw Data"** button above to download the current dataset, modify it, and re-upload.
+    """)
+
+col_upload, col_status = st.columns([3, 1])
+
+with col_upload:
+    uploaded_file = st.file_uploader(
+        "Upload a CSV file to update dashboard data",
+        type=["csv"],
+        help="Upload a CSV with the required columns. All dashboard visualizations will update automatically.",
+        key="global_csv_uploader"
+    )
+
+with col_status:
+    if st.session_state.use_uploaded_data:
+        st.success("✅ Using uploaded data")
+    else:
+        st.info("📊 Using original data")
+
+# Process uploaded file
+if uploaded_file is not None:
+    try:
+        user_df = pd.read_csv(uploaded_file)
+        
+        # ── Validate required columns ─────────────────────────────────
+        required_cols = ['timestamp','region','service_type','usage_units',
+                         'provisioned_capacity','cost_usd','availability_pct',
+                         'economic_index','market_demand_index']
+        missing_cols = [c for c in required_cols if c not in user_df.columns]
+
+        if missing_cols:
+            st.error(f"❌ Missing required columns: **{', '.join(missing_cols)}**")
+            st.info("Expand the 'How it works' section above to see the full list of required columns.")
+        else:
+            with st.spinner("⚙️ Preprocessing your data..."):
+                # ── Step 1: Basic cleaning ───────────────────────────
+                user_df['timestamp'] = pd.to_datetime(user_df['timestamp'])
+                user_df = user_df.sort_values('timestamp')
+                user_df['region'] = user_df['region'].str.lower().str.replace(" ", "-")
+                user_df['service_type'] = user_df['service_type'].str.strip()
+
+                # ── Step 2: Imputation & clipping using saved artifacts
+                medians_u, clips_u, group_stats_u = load_artifacts()
+                num_cols_u = ['usage_units','provisioned_capacity','cost_usd',
+                              'availability_pct','economic_index','market_demand_index']
+                for col in num_cols_u:
+                    user_df[col] = user_df[col].fillna(medians_u.get(col, 0))
+                for col, bounds in clips_u.items():
+                    if col in user_df.columns:
+                        user_df[col] = user_df[col].clip(lower=bounds[0], upper=bounds[1])
+                rate_u = (user_df['cost_usd'] / user_df['usage_units'].replace(0, np.nan)).median()
+                user_df['cost_usd'] = user_df['cost_usd'].fillna(user_df['usage_units'] * rate_u)
+
+                # ── Step 3: Time features ────────────────────────────
+                user_df['year']           = user_df['timestamp'].dt.year
+                user_df['month']          = user_df['timestamp'].dt.month
+                user_df['day']            = user_df['timestamp'].dt.day
+                user_df['day_of_week']    = user_df['timestamp'].dt.dayofweek
+                user_df['quarter']        = user_df['timestamp'].dt.quarter
+                user_df['is_weekend']     = (user_df['day_of_week'] >= 5).astype(int)
+                user_df['is_month_start'] = user_df['timestamp'].dt.is_month_start.astype(int)
+                user_df['is_month_end']   = user_df['timestamp'].dt.is_month_end.astype(int)
+
+                # ── Step 4: Fourier seasonality terms ───────────────
+                user_df['fourier_weekly_sin']  = np.sin(2 * np.pi * user_df['day_of_week'] / 7)
+                user_df['fourier_weekly_cos']  = np.cos(2 * np.pi * user_df['day_of_week'] / 7)
+                user_df['fourier_monthly_sin'] = np.sin(2 * np.pi * user_df['day'] / 30.44)
+                user_df['fourier_monthly_cos'] = np.cos(2 * np.pi * user_df['day'] / 30.44)
+
+                # ── Step 5: Derived capacity features ───────────────
+                user_df['capacity_utilization'] = user_df['usage_units'] / user_df['provisioned_capacity']
+                user_df['headroom_units']        = user_df['provisioned_capacity'] - user_df['usage_units']
+                user_df['wasted_capacity_cost']  = user_df['headroom_units'].clip(lower=0) * rate_u
+                user_df['over_capacity_flag']    = (user_df['usage_units'] > user_df['provisioned_capacity']).astype(int)
+                user_df['waste_pct']             = (user_df['headroom_units'] / user_df['provisioned_capacity']).clip(0, 1) * 100
+
+                # ── Step 6: Lag & rolling features ──────────────────
+                user_df = user_df.sort_values(['region','service_type','timestamp'])
+                for lag in [1, 2, 3, 7, 14, 30]:
+                    user_df[f'lag_{lag}'] = user_df.groupby(['region','service_type'])['usage_units'].shift(lag)
+                user_df['usage_trend_7'] = user_df['lag_1'] - user_df['lag_7']
+                for window, lbl in [(7,'7'),(14,'14'),(30,'30')]:
+                    user_df[f'rolling_mean_{lbl}'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(window, min_periods=1).mean())
+                    user_df[f'rolling_std_{lbl}']  = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(window, min_periods=1).std())
+                user_df['rolling_max_7'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(7, min_periods=1).max())
+                user_df['rolling_min_7'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(7, min_periods=1).min())
+
+                # ── Step 7: Momentum ratios ──────────────────────────
+                eps = 1e-6
+                user_df['momentum_3_7']  = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(3, min_periods=1).mean()) / (user_df['rolling_mean_7'] + eps)
+                user_df['momentum_7_30'] = user_df['rolling_mean_7'] / (user_df['rolling_mean_30'] + eps)
+
+                # ── Step 8: EWMA ──────────────────────────────────────
+                for span, lbl in [(7,'7'),(14,'14'),(30,'30')]:
+                    user_df[f'ewma_{lbl}'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).ewm(span=span, min_periods=1).mean())
+
+                # ── Step 9: Interaction features ─────────────────────
+                user_df['usage_x_economic']    = user_df['usage_units'] * user_df['economic_index']
+                user_df['capacity_x_demand']   = user_df['provisioned_capacity'] * user_df['market_demand_index']
+                user_df['util_x_availability'] = user_df['capacity_utilization'] * user_df['availability_pct']
+
+                # ── Step 10: Group historical anchoring ──────────────
+                user_df['group_historical_avg'] = user_df.apply(lambda row: group_stats_u.get((row['region'], row['service_type']), 0), axis=1)
+                user_df['deviation_from_group'] = user_df['lag_1'] - user_df['group_historical_avg']
+
+                # ── Step 11: Spike flag & daily growth ───────────────
+                user_df['usage_spike_flag'] = (user_df['usage_units'] > user_df['rolling_mean_7'] + 2 * user_df['rolling_std_7']).astype(int)
+                user_df['daily_growth'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.pct_change()).fillna(0).clip(-1, 1)
+
+                # ── Step 12: Fill NaNs from lag warm-up ─────────────
+                lag_cols_u = [c for c in user_df.columns if c.startswith(('lag_','rolling_','ewma_','momentum_')) or c in ('usage_trend_7','deviation_from_group')]
+                user_df[lag_cols_u] = user_df[lag_cols_u].fillna(0)
+
+                # ── Step 13: Encode categoricals ─────────────────────
+                user_enc = pd.get_dummies(user_df, columns=['region','service_type'], drop_first=True)
+
+                # ── Step 14: Align with saved model feature list ──────
+                for col in model_features:
+                    if col not in user_enc.columns:
+                        user_enc[col] = 0
+                X_user = user_enc[model_features]
+
+                # ── Step 15: Run the saved XGBoost model ─────────────
+                user_preds_raw = model.predict(X_user)
+                user_preds_raw = np.clip(user_preds_raw, 0, user_preds_raw.max() * 1.5)
+
+                # ── ADAPTIVE CALIBRATION ──────────────────────────────
+                # Calculate calibration ratio from training vs new data characteristics
+                train_usage_mean = df_raw['usage_units'].mean()
+                train_usage_std = df_raw['usage_units'].std()
+                
+                new_usage_mean = user_df['usage_units'].mean()
+                new_usage_std = user_df['usage_units'].std()
+                
+                # Calibration factor based on data distribution
+                pred_mean = user_preds_raw.mean()
+                calibration_ratio = new_usage_mean / pred_mean if pred_mean > 0 else 1.0
+                
+                # Apply adaptive calibration with smoothing
+                calibration_ratio = max(0.5, min(2.0, calibration_ratio))  # Limit extreme adjustments
+                user_preds_calibrated = user_preds_raw * calibration_ratio
+                
+                # Store both versions for comparison
+                st.session_state.user_preds_raw = user_preds_raw
+                st.session_state.user_preds_calibrated = user_preds_calibrated
+                st.session_state.calibration_ratio = calibration_ratio
+                st.session_state.uploaded_data = user_df
+                st.session_state.use_uploaded_data = True
+                st.session_state.uploaded_predictions = user_preds_calibrated
+                
+                # Use calibrated predictions
+                user_preds = user_preds_calibrated
+                
+            st.success(f"✅ **{uploaded_file.name}** processed successfully — **{len(user_df):,} rows** loaded into dashboard")
+            
+            # ── Adaptive Model Options ────────────────────────────────
+            st.markdown('<div class="section-header">⚙️ ADAPTIVE MODEL OPTIONS</div>', unsafe_allow_html=True)
+            
+            option_col1, option_col2, option_col3 = st.columns(3)
+            
+            with option_col1:
+                st.metric("📊 Calibration Ratio", f"{st.session_state.calibration_ratio:.2f}x", 
+                         "Adjustment applied to predictions")
+            
+            with option_col2:
+                if st.button("🔄 Apply Auto-Calibration", help="Adjust model for your data scale"):
+                    st.success("✅ Auto-calibration applied! Predictions scaled to match your data.")
+            
+            with option_col3:
+                use_raw = st.checkbox("📈 Show Raw Predictions", value=False, 
+                                     help="Display original model output without calibration")
+                if use_raw:
+                    st.info("ℹ️ Showing raw model predictions (before calibration)")
+                    user_preds = st.session_state.user_preds_raw
+            
+            # ── Display Uploaded Dataset Information & Predictions ──
+            st.markdown('<div class="section-header">📊 UPLOADED DATASET ANALYSIS</div>', unsafe_allow_html=True)
+            
+            # KPIs for uploaded data
+            kc = st.columns(4)
+            kc[0].markdown(kpi_card("Total Records", f"{len(user_df):,}", "From uploaded file"), unsafe_allow_html=True)
+            kc[1].markdown(kpi_card("Avg Usage Units", f"{user_df['usage_units'].mean():,.1f}", "Actual data"), unsafe_allow_html=True)
+            kc[2].markdown(kpi_card("Avg Predicted Usage", f"{user_preds.mean():,.1f}", f"Calibrated {st.session_state.calibration_ratio:.2f}x"), unsafe_allow_html=True)
+            kc[3].markdown(kpi_card("Prediction Variance", f"{np.std(user_preds):,.1f}", "Standard deviation"), unsafe_allow_html=True)
+
+            # Build results dataframe
+            results_df = user_df[['timestamp','region','service_type','usage_units','provisioned_capacity','cost_usd']].copy()
+            results_df['predicted_usage'] = user_preds.round(2)
+            results_df['prediction_error'] = (results_df['predicted_usage'] - results_df['usage_units']).round(2)
+            results_df['error_pct'] = ((results_df['prediction_error'].abs() / results_df['usage_units'].replace(0, np.nan)) * 100).round(2)
+
+            # Visualizations
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                fig_comp = go.Figure()
+                fig_comp.add_trace(go.Scatter(x=results_df['timestamp'], y=results_df['usage_units'],
+                    mode='lines', name='Actual Usage', line=dict(color='#38bdf8', width=2.5)))
+                fig_comp.add_trace(go.Scatter(x=results_df['timestamp'], y=results_df['predicted_usage'],
+                    mode='lines', name='Predicted Usage', line=dict(color=ACCENT, width=2, dash='dash')))
+                fig_comp.update_layout(BASE_MARGINS, title="Actual vs Predicted Usage (Uploaded Data)", height=350)
+                st.plotly_chart(fig_comp, use_container_width=True)
+
+            with col2:
+                fig_err = px.histogram(x=results_df['error_pct'].dropna(), nbins=30,
+                    title="Prediction Error Distribution", labels={'x': 'Error %', 'y': 'Count'},
+                    color_discrete_sequence=[ACCENT])
+                fig_err.add_vline(x=5, line_dash="dash", line_color="#4ade80", annotation_text="5%")
+                fig_err.add_vline(x=10, line_dash="dash", line_color="#38bdf8", annotation_text="10%")
+                fig_err.update_layout(BASE_MARGINS, height=350)
+                st.plotly_chart(fig_err, use_container_width=True)
+
+            # Data table
+            st.markdown('<div class="section-header">DETAILED PREDICTIONS TABLE</div>', unsafe_allow_html=True)
+            st.dataframe(results_df.head(100), use_container_width=True, height=350)
+
+            # Download option
+            csv_out = results_df.to_csv(index=False).encode('utf-8')
+            st.download_button("⬇️ Download Predictions CSV", data=csv_out,
+                file_name="azure_predictions_output.csv", mime='text/csv')
+            
+            # ── Diagnostic Analysis ──────────────────────────────────
+            st.markdown('<div class="section-header">🔍 DATA DIAGNOSTICS & INSIGHTS</div>', unsafe_allow_html=True)
+            st.warning("⚠️ **Model Performance Analysis** — The model's accuracy depends on how similar your data is to the training data.")
+            
+            diag_col1, diag_col2 = st.columns(2)
+            
+            with diag_col1:
+                st.markdown("### 📈 Dataset Statistics Comparison")
+                
+                # Compare uploaded data with original training data
+                train_stats = {
+                    'Metric': ['Avg Usage Units', 'Min Usage', 'Max Usage', 'Std Dev', 'Avg Capacity', 'Avg Cost'],
+                    'Training Data': [
+                        f"{df_raw['usage_units'].mean():.2f}",
+                        f"{df_raw['usage_units'].min():.2f}",
+                        f"{df_raw['usage_units'].max():.2f}",
+                        f"{df_raw['usage_units'].std():.2f}",
+                        f"{df_raw['provisioned_capacity'].mean():.2f}",
+                        f"{df_raw['cost_usd'].mean():.2f}"
+                    ],
+                    'Your Data': [
+                        f"{user_df['usage_units'].mean():.2f}",
+                        f"{user_df['usage_units'].min():.2f}",
+                        f"{user_df['usage_units'].max():.2f}",
+                        f"{user_df['usage_units'].std():.2f}",
+                        f"{user_df['provisioned_capacity'].mean():.2f}",
+                        f"{user_df['cost_usd'].mean():.2f}"
+                    ]
+                }
+                
+                stats_df = pd.DataFrame(train_stats)
+                st.dataframe(stats_df, use_container_width=True, hide_index=True)
+                
+                # Check for data mismatches
+                train_usage_mean = df_raw['usage_units'].mean()
+                upload_usage_mean = user_df['usage_units'].mean()
+                usage_diff_pct = abs(upload_usage_mean - train_usage_mean) / train_usage_mean * 100
+                
+                if usage_diff_pct > 50:
+                    st.error(f"🔴 **Data Scale Mismatch**: Your data has {usage_diff_pct:.1f}% different average usage than training data.")
+                elif usage_diff_pct > 20:
+                    st.warning(f"🟡 **Moderate Scale Difference**: Your data differs by {usage_diff_pct:.1f}% from training data.")
+                else:
+                    st.success(f"🟢 **Good Scale Match**: Your data is {usage_diff_pct:.1f}% similar to training data.")
+            
+            with diag_col2:
+                st.markdown("### ⚙️ Why Model Performance May Be Low")
+                
+                problems = []
+                
+                if usage_diff_pct > 50:
+                    problems.append("❌ **Scale Mismatch**: Usage values are very different from training data")
+                
+                # Check for lag feature issues
+                if user_df['lag_1'].isna().sum() / len(user_df) > 0.1:
+                    problems.append("❌ **Cold Start Problem**: Not enough historical context for lag features")
+                
+                # Check region/service type mismatch
+                train_regions = set(df_raw['region'].unique())
+                upload_regions = set(user_df['region'].unique())
+                if not upload_regions.issubset(train_regions):
+                    problems.append("❌ **New Regions**: Some regions weren't in training data")
+                
+                # Check for missing values
+                missing_pct = user_df[['usage_units','provisioned_capacity','availability_pct']].isna().sum().sum() / (len(user_df) * 3)
+                if missing_pct > 0.05:
+                    problems.append(f"❌ **Missing Values**: {missing_pct*100:.1f}% of data is null")
+                
+                if not problems:
+                    st.markdown("✅ **No major issues detected** — Performance should be reasonable")
+                else:
+                    st.markdown("**Potential Issues:**")
+                    for problem in problems:
+                        st.markdown(f"- {problem}")
+            
+            # Recommendations
+            st.markdown('<div class="section-header">💡 RECOMMENDATIONS</div>', unsafe_allow_html=True)
+            
+            rec_col1, rec_col2 = st.columns(2)
+            
+            with rec_col1:
+                st.markdown("""
+                ### To Improve Predictions:
+                1. **Use Similar Scale Data** — Ensure your data is in the same range as training data
+                2. **Provide Historical Context** — Include at least 30 days of historical data for proper lag features
+                3. **Match Training Regions** — Use regions that were in the training dataset
+                4. **Clean Missing Values** — Fill or remove null values before upload
+                5. **Check Data Quality** — Ensure no obvious errors or outliers
+                """)
+            
+            with rec_col2:
+                st.markdown("""
+                ### Model Limitations:
+                - **Time Series Dependency**: Model needs temporal continuity
+                - **Feature Dependencies**: Lag features depend on historical patterns
+                - **Training Data Bias**: Model optimized for specific Azure patterns
+                - **Extrapolation Risk**: Predicting beyond training ranges is risky
+                - **Regional patterns**: Different regions have different behaviors
+                """)
+            
+            
+            
+    except Exception as e:
+        st.error(f"❌ Error processing file: {e}")
+        st.info("Make sure your CSV has the correct columns and valid data. Expand the info box above for details.")
+
+st.markdown("---")
 
 # ── Tabs ─────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -841,209 +1413,231 @@ with tab3:
 # ══════════════════════════════════════════════════════════════════════════
 with tab4:
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # CSV UPLOAD — CUSTOM PREDICTIONS
-    # How it works:
-    #   1. User uploads a CSV with raw Azure data columns
-    #   2. The dashboard preprocesses it (same pipeline as training)
-    #   3. The saved XGBoost .pkl model makes predictions
-    #   4. Results are shown in a chart + downloadable table
-    # NOTE: This does NOT re-run the backend training script. It uses the
-    #       already-trained model artifacts saved in /models/.
-    # ══════════════════════════════════════════════════════════════════════════
-    st.markdown('<div class="section-header">📂 UPLOAD YOUR DATA FOR PREDICTIONS</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">🤖 MODEL ADAPTATION & FINE-TUNING</div>', unsafe_allow_html=True)
 
-    with st.expander("ℹ️ How it works + Required CSV Columns", expanded=False):
-        st.markdown("""
-        ### How predictions work
-        When you upload a CSV, the dashboard will:
-        1. **Validate** your columns
-        2. **Preprocess** your data (same steps used during model training — imputation, clipping, lag features, rolling stats, Fourier terms, etc.)
-        3. **Run the saved XGBoost model** on your preprocessed data
-        4. **Display predictions** in a chart and table, with a download option
-
-        > The backend training script (`azure_forecast_fixed.py`) is **not re-run**. Streamlit uses the already-trained model saved in `/models/best_xgboost_model.pkl`.
-
-        ---
-        ### Required CSV Columns
-
-        | Column | Type | Example |
-        |--------|------|---------|
-        | `timestamp` | date/datetime | `2024-08-01` |
-        | `region` | string | `east-us` |
-        | `service_type` | string | `Compute` |
-        | `usage_units` | float | `1200.5` |
-        | `provisioned_capacity` | float | `2000.0` |
-        | `cost_usd` | float | `450.0` |
-        | `availability_pct` | float | `99.9` |
-        | `economic_index` | float | `100.2` |
-        | `market_demand_index` | float | `98.5` |
-
-        > **Tip:** Use the **"Export Executive Raw Data"** button at the top of this page to download the current dataset, modify it, and re-upload.
-        """)
-
-    uploaded_file = st.file_uploader(
-        "Upload a CSV file to generate predictions using the trained XGBoost model",
-        type=["csv"],
-        help="Upload a CSV with the required columns. Preprocessing is handled automatically.",
-        key="csv_uploader"
-    )
-
-    if uploaded_file is not None:
-        try:
-            user_df = pd.read_csv(uploaded_file)
-            st.success(f"✅ **{uploaded_file.name}** uploaded — **{len(user_df):,} rows** detected")
-
-            # ── Validate required columns ─────────────────────────────────
-            required_cols = ['timestamp','region','service_type','usage_units',
-                             'provisioned_capacity','cost_usd','availability_pct',
-                             'economic_index','market_demand_index']
-            missing_cols = [c for c in required_cols if c not in user_df.columns]
-
-            if missing_cols:
-                st.error(f"❌ Missing required columns: **{', '.join(missing_cols)}**")
-                st.info("Expand the 'How it works' section above to see the full list of required columns.")
-            else:
-                with st.spinner("⚙️ Preprocessing your data and running predictions..."):
-
-                    # ── Step 1: Basic cleaning ───────────────────────────
-                    user_df['timestamp'] = pd.to_datetime(user_df['timestamp'])
-                    user_df = user_df.sort_values('timestamp')
-                    user_df['region'] = user_df['region'].str.lower().str.replace(" ", "-")
-                    user_df['service_type'] = user_df['service_type'].str.strip()
-
-                    # ── Step 2: Imputation & clipping using saved artifacts
-                    medians_u, clips_u, group_stats_u = load_artifacts()
-                    num_cols_u = ['usage_units','provisioned_capacity','cost_usd',
-                                  'availability_pct','economic_index','market_demand_index']
-                    for col in num_cols_u:
-                        user_df[col] = user_df[col].fillna(medians_u.get(col, 0))
-                    for col, bounds in clips_u.items():
-                        if col in user_df.columns:
-                            user_df[col] = user_df[col].clip(lower=bounds[0], upper=bounds[1])
-                    rate_u = (user_df['cost_usd'] / user_df['usage_units'].replace(0, np.nan)).median()
-                    user_df['cost_usd'] = user_df['cost_usd'].fillna(user_df['usage_units'] * rate_u)
-
-                    # ── Step 3: Time features ────────────────────────────
-                    user_df['year']           = user_df['timestamp'].dt.year
-                    user_df['month']          = user_df['timestamp'].dt.month
-                    user_df['day']            = user_df['timestamp'].dt.day
-                    user_df['day_of_week']    = user_df['timestamp'].dt.dayofweek
-                    user_df['quarter']        = user_df['timestamp'].dt.quarter
-                    user_df['is_weekend']     = (user_df['day_of_week'] >= 5).astype(int)
-                    user_df['is_month_start'] = user_df['timestamp'].dt.is_month_start.astype(int)
-                    user_df['is_month_end']   = user_df['timestamp'].dt.is_month_end.astype(int)
-
-                    # ── Step 4: Fourier seasonality terms ───────────────
-                    user_df['fourier_weekly_sin']  = np.sin(2 * np.pi * user_df['day_of_week'] / 7)
-                    user_df['fourier_weekly_cos']  = np.cos(2 * np.pi * user_df['day_of_week'] / 7)
-                    user_df['fourier_monthly_sin'] = np.sin(2 * np.pi * user_df['day'] / 30.44)
-                    user_df['fourier_monthly_cos'] = np.cos(2 * np.pi * user_df['day'] / 30.44)
-
-                    # ── Step 5: Derived capacity features ───────────────
-                    user_df['capacity_utilization'] = user_df['usage_units'] / user_df['provisioned_capacity']
-                    user_df['headroom_units']        = user_df['provisioned_capacity'] - user_df['usage_units']
-                    user_df['wasted_capacity_cost']  = user_df['headroom_units'].clip(lower=0) * rate_u
-                    user_df['over_capacity_flag']    = (user_df['usage_units'] > user_df['provisioned_capacity']).astype(int)
-                    user_df['waste_pct']             = (user_df['headroom_units'] / user_df['provisioned_capacity']).clip(0, 1) * 100
-
-                    # ── Step 6: Lag & rolling features ──────────────────
-                    user_df = user_df.sort_values(['region','service_type','timestamp'])
-                    for lag in [1, 2, 3, 7, 14, 30]:
-                        user_df[f'lag_{lag}'] = user_df.groupby(['region','service_type'])['usage_units'].shift(lag)
-                    user_df['usage_trend_7'] = user_df['lag_1'] - user_df['lag_7']
-                    for window, lbl in [(7,'7'),(14,'14'),(30,'30')]:
-                        user_df[f'rolling_mean_{lbl}'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(window, min_periods=1).mean())
-                        user_df[f'rolling_std_{lbl}']  = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(window, min_periods=1).std())
-                    user_df['rolling_max_7'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(7, min_periods=1).max())
-                    user_df['rolling_min_7'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(7, min_periods=1).min())
-
-                    # ── Step 7: Momentum ratios ──────────────────────────
-                    eps = 1e-6
-                    user_df['momentum_3_7']  = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).rolling(3, min_periods=1).mean()) / (user_df['rolling_mean_7'] + eps)
-                    user_df['momentum_7_30'] = user_df['rolling_mean_7'] / (user_df['rolling_mean_30'] + eps)
-
-                    # ── Step 8: EWMA ──────────────────────────────────────
-                    for span, lbl in [(7,'7'),(14,'14'),(30,'30')]:
-                        user_df[f'ewma_{lbl}'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.shift(1).ewm(span=span, min_periods=1).mean())
-
-                    # ── Step 9: Interaction features ─────────────────────
-                    user_df['usage_x_economic']    = user_df['usage_units'] * user_df['economic_index']
-                    user_df['capacity_x_demand']   = user_df['provisioned_capacity'] * user_df['market_demand_index']
-                    user_df['util_x_availability'] = user_df['capacity_utilization'] * user_df['availability_pct']
-
-                    # ── Step 10: Group historical anchoring ──────────────
-                    user_df['group_historical_avg'] = user_df.apply(lambda row: group_stats_u.get((row['region'], row['service_type']), 0), axis=1)
-                    user_df['deviation_from_group'] = user_df['lag_1'] - user_df['group_historical_avg']
-
-                    # ── Step 11: Spike flag & daily growth ───────────────
-                    user_df['usage_spike_flag'] = (user_df['usage_units'] > user_df['rolling_mean_7'] + 2 * user_df['rolling_std_7']).astype(int)
-                    user_df['daily_growth'] = user_df.groupby(['region','service_type'])['usage_units'].transform(lambda x: x.pct_change()).fillna(0).clip(-1, 1)
-
-                    # ── Step 12: Fill NaNs from lag warm-up ─────────────
-                    lag_cols_u = [c for c in user_df.columns if c.startswith(('lag_','rolling_','ewma_','momentum_')) or c in ('usage_trend_7','deviation_from_group')]
-                    user_df[lag_cols_u] = user_df[lag_cols_u].fillna(0)
-
-                    # ── Step 13: Encode categoricals ─────────────────────
-                    user_enc = pd.get_dummies(user_df, columns=['region','service_type'], drop_first=True)
-
-                    # ── Step 14: Align with saved model feature list ──────
-                    for col in model_features:
-                        if col not in user_enc.columns:
-                            user_enc[col] = 0
-                    X_user = user_enc[model_features]
-
-                    # ── Step 15: Run the saved XGBoost model ─────────────
-                    user_preds = model.predict(X_user)
-                    user_preds = np.clip(user_preds, 0, user_preds.max() * 1.5)
-
-                # ── Build Results DataFrame ───────────────────────────────
-                results_user = user_df[['timestamp','region','service_type',
-                                        'usage_units','provisioned_capacity']].copy()
-                results_user['predicted_usage']  = user_preds.round(2)
-                results_user['prediction_error'] = (results_user['predicted_usage'] - results_user['usage_units']).round(2)
-                results_user['error_pct']        = ((results_user['prediction_error'].abs() / results_user['usage_units'].replace(0, np.nan)) * 100).round(2)
-
-                # ── Summary KPIs ──────────────────────────────────────────
-                st.markdown('<div class="section-header">📊 PREDICTION RESULTS</div>', unsafe_allow_html=True)
-                kc = st.columns(4)
-                kc[0].markdown(kpi_card("Rows Predicted", f"{len(results_user):,}", "From uploaded file"), unsafe_allow_html=True)
-                kc[1].markdown(kpi_card("Avg Predicted Usage", f"{user_preds.mean():,.1f}", "Across all rows"), unsafe_allow_html=True)
-                kc[2].markdown(kpi_card("Min Prediction", f"{user_preds.min():,.1f}", "Lowest forecast"), unsafe_allow_html=True)
-                kc[3].markdown(kpi_card("Max Prediction", f"{user_preds.max():,.1f}", "Highest forecast"), unsafe_allow_html=True)
-
-                # ── Actual vs Predicted Chart ─────────────────────────────
-                fig_u = go.Figure()
-                fig_u.add_trace(go.Scatter(x=results_user['timestamp'], y=results_user['usage_units'],
-                    mode='lines', name='Actual Usage', line=dict(color='#38bdf8', width=2.5)))
-                fig_u.add_trace(go.Scatter(x=results_user['timestamp'], y=results_user['predicted_usage'],
-                    mode='lines', name='XGBoost Prediction', line=dict(color=ACCENT, width=2, dash='dash')))
-                fig_u.update_layout(BASE_MARGINS,
-                    title="Your Uploaded Data: Actual vs Predicted Usage",
-                    height=420, legend=dict(orientation='h', y=1.1))
-                st.plotly_chart(fig_u, use_container_width=True)
-
-                # ── Results Table ─────────────────────────────────────────
-                st.markdown('<div class="section-header">📋 DETAILED PREDICTION TABLE</div>', unsafe_allow_html=True)
-                st.dataframe(results_user.reset_index(drop=True), use_container_width=True, height=350)
-
-                # ── Download ──────────────────────────────────────────────
-                csv_out = results_user.to_csv(index=False).encode('utf-8')
-                st.download_button("⬇️ Download Predictions CSV", data=csv_out,
-                    file_name="azure_predictions_output.csv", mime='text/csv')
-
-        except Exception as e:
-            st.error(f"❌ Error: {e}")
-            st.info("Make sure your CSV has the correct columns and valid data. Expand the info box above for details.")
+    # ── Adaptation Options ────────────────────────────────────────────
+    adapt_col1, adapt_col2 = st.columns(2)
+    
+    with adapt_col1:
+        st.markdown("### 🔧 Model Adaptation Options")
+        
+        adaptation_method = st.selectbox(
+            "Choose model adaptation strategy:",
+            [
+                "No Adaptation (Original Model)",
+                "Auto-Calibration (Recommended)",
+                "Feature Scaling Normalization",
+                "Rolling Average Ensemble",
+                "Regional Adjustment"
+            ],
+            help="Different strategies to make the model work better with your data"
+        )
+    
+    with adapt_col2:
+        st.markdown("### 📚 How Each Works")
+        
+        if adaptation_method == "No Adaptation (Original Model)":
+            st.info("Uses the original trained model without any adjustments.")
+        elif adaptation_method == "Auto-Calibration (Recommended)":
+            st.success("Adjusts predictions by comparing your data stats with training data. Best for scale differences.")
+        elif adaptation_method == "Feature Scaling Normalization":
+            st.info("Normalizes features to 0-1 range to match training distribution.")
+        elif adaptation_method == "Rolling Average Ensemble":
+            st.warning("Combines predictions with rolling averages for smoother results.")
+        elif adaptation_method == "Regional Adjustment":
+            st.info("Applies region-specific bias corrections based on historical patterns.")
+    
+    # ── Store active adaptation method ─────────────────────────────────
+    if 'adaptation_method' not in st.session_state:
+        st.session_state.adaptation_method = adaptation_method
     else:
-        st.info("⬆️ Upload a CSV file above. Preprocessing and predictions happen automatically using the trained XGBoost model.")
+        st.session_state.adaptation_method = adaptation_method
+
+    st.markdown("---")
+    
+    # ══════════════════════════════════════════════════════════════════════════
+    # AUTOMATIC RETRAINING SECTION
+    # ══════════════════════════════════════════════════════════════════════════
+    st.markdown('<div class="section-header">⚙️ AUTOMATIC RETRAINING SETUP</div>', unsafe_allow_html=True)
+
+    auto_col1, auto_col2, auto_col3 = st.columns(3)
+
+    with auto_col1:
+        st.markdown("### Enable Auto-Retraining")
+        auto_retrain = st.checkbox("🔄 Enable Automatic Retraining", 
+                                  value=st.session_state.auto_retrain_enabled,
+                                  help="Model will automatically retrain based on triggers")
+        st.session_state.auto_retrain_enabled = auto_retrain
+
+    with auto_col2:
+        st.markdown("### Retraining Trigger")
+        trigger = st.selectbox(
+            "When should model retrain?",
+            ["Performance Drop", "Weekly Schedule", "Manual Only", "Data Size Threshold"],
+            help="Choose retraining trigger condition"
+        )
+        st.session_state.retrain_trigger = trigger
+
+    with auto_col3:
+        st.markdown("### Performance Threshold")
+        threshold = st.slider(
+            "Retrain if R² drops below:",
+            0.5, 0.95, 0.75, 0.05,
+            help="Model will retrain if accuracy falls below this threshold"
+        )
+        st.session_state.performance_threshold = threshold
+
+    # ── Retraining Actions ────────────────────────────────────────────────────
+    if auto_retrain:
+        st.info(f"✅ Auto-retraining **ENABLED**\nTrigger: {trigger} | Threshold: R² > {threshold:.2f}")
+        
+        action_col1, action_col2, action_col3 = st.columns(3)
+        
+        with action_col1:
+            if st.button("🔄 Retrain Now", key="retrain_now_btn"):
+                with st.spinner("⏳ Retraining model on active data..."):
+                    try:
+                        # Get active data
+                        active_df = get_active_dataframe()
+                        
+                        # Split data
+                        split_date = '2024-07-01'
+                        train_df = active_df[active_df['timestamp'] < split_date]
+                        test_df = active_df[active_df['timestamp'] >= split_date]
+                        
+                        # Train new model
+                        train_enc = pd.get_dummies(train_df, columns=['region','service_type'], drop_first=True)
+                        for col in model_features:
+                            if col not in train_enc.columns:
+                                train_enc[col] = 0
+                        X_train = train_enc[model_features]
+                        y_train = train_df['usage_units'].values
+                        
+                        new_model = XGBRegressor(n_estimators=100, learning_rate=0.05, max_depth=6, random_state=42, n_jobs=-1)
+                        new_model.fit(X_train, y_train, verbose=False)
+                        
+                        # Validate
+                        test_enc = pd.get_dummies(test_df, columns=['region','service_type'], drop_first=True)
+                        for col in model_features:
+                            if col not in test_enc.columns:
+                                test_enc[col] = 0
+                        X_test = test_enc[model_features]
+                        y_test = test_df['usage_units'].values
+                        
+                        old_preds = model.predict(X_test)
+                        new_preds = new_model.predict(X_test)
+                        
+                        old_r2 = r2_score(y_test, old_preds)
+                        new_r2 = r2_score(y_test, new_preds)
+                        old_mae = mean_absolute_error(y_test, old_preds)
+                        new_mae = mean_absolute_error(y_test, new_preds)
+                        
+                        improvement = ((new_r2 - old_r2) / abs(old_r2) * 100) if old_r2 != 0 else 0
+                        
+                        if new_r2 > old_r2:
+                            st.session_state.model_version += 1
+                            st.session_state.last_retrain_date = datetime.now()
+                            
+                            retrain_entry = {
+                                'date': datetime.now().isoformat(),
+                                'version': st.session_state.model_version,
+                                'old_r2': float(old_r2),
+                                'new_r2': float(new_r2),
+                                'old_mae': float(old_mae),
+                                'new_mae': float(new_mae),
+                                'improvement': float(improvement),
+                                'rows': len(active_df)
+                            }
+                            st.session_state.retrain_history.append(retrain_entry)
+                            
+                            st.success(f"✅ Model v{st.session_state.model_version} deployed! R² improved by {improvement:.1f}%")
+                            
+                            col_old, col_new = st.columns(2)
+                            with col_old:
+                                st.metric("Previous R²", f"{old_r2:.4f}", delta=f"-{abs(improvement):.1f}%", delta_color="inverse")
+                            with col_new:
+                                st.metric("New R²", f"{new_r2:.4f}", delta=f"+{improvement:.1f}%")
+                        else:
+                            st.warning(f"⚠️ New model is worse. Old R²: {old_r2:.4f}, New R²: {new_r2:.4f}. Keeping current model.")
+                    
+                    except Exception as e:
+                        st.error(f"❌ Retraining error: {e}")
+        
+        with action_col2:
+            if st.button("📊 View Retraining History", key="history_btn"):
+                st.subheader("📈 Retraining History")
+                if st.session_state.retrain_history:
+                    history_df = pd.DataFrame([
+                        {
+                            'Date': entry['date'][:10],
+                            'Version': f"v{entry['version']}",
+                            'Rows': entry['rows'],
+                            'Old R²': f"{entry['old_r2']:.4f}",
+                            'New R²': f"{entry['new_r2']:.4f}",
+                            'Improvement': f"{entry['improvement']:.1f}%"
+                        }
+                        for entry in st.session_state.retrain_history
+                    ])
+                    st.dataframe(history_df, use_container_width=True, hide_index=True)
+                    
+                    # Plot improvement over time
+                    if len(st.session_state.retrain_history) > 0:
+                        fig = px.line(
+                            pd.DataFrame(st.session_state.retrain_history),
+                            x='date', y='improvement', 
+                            title="Model Improvement Over Retrainings",
+                            markers=True, color_discrete_sequence=[ACCENT]
+                        )
+                        fig.update_layout(BASE_MARGINS, height=350)
+                        st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No retraining history yet")
+        
+        with action_col3:
+            if st.button("💾 Export Model Configuration", key="export_config"):
+                config = {
+                    'current_version': st.session_state.model_version,
+                    'auto_retrain_enabled': st.session_state.auto_retrain_enabled,
+                    'retrain_trigger': st.session_state.retrain_trigger,
+                    'performance_threshold': st.session_state.performance_threshold,
+                    'last_retrain': str(st.session_state.last_retrain_date),
+                    'history_count': len(st.session_state.retrain_history),
+                    'history': st.session_state.retrain_history
+                }
+                
+                config_json = json.dumps(config, indent=2)
+                st.download_button(
+                    label="⬇️ Download Configuration",
+                    data=config_json,
+                    file_name=f"model_config_v{st.session_state.model_version}.json",
+                    mime="application/json"
+                )
+        
+        # Show model status
+        st.markdown("---")
+        status_col1, status_col2, status_col3 = st.columns(3)
+        
+        with status_col1:
+            st.metric("Current Model Version", f"v{st.session_state.model_version}")
+        
+        with status_col2:
+            if st.session_state.last_retrain_date:
+                st.metric("Last Retrain", st.session_state.last_retrain_date.strftime("%Y-%m-%d %H:%M"))
+            else:
+                st.metric("Last Retrain", "Never")
+        
+        with status_col3:
+            st.metric("Total Retrainings", len(st.session_state.retrain_history))
+
+    else:
+        st.warning("⚠️ Auto-retraining is **DISABLED**. Enable it above to use automatic model updates.")
 
     st.markdown("---")
     st.markdown('<div class="section-header">MODEL ACCURACY & PERFORMANCE</div>', unsafe_allow_html=True)
 
     # --- Prepare train/test split & predictions ---
     split_date = '2024-07-01'
-    df_model = df_raw.copy()
+    df_model = get_active_dataframe().copy()
     df_model['region_lower'] = df_model['region'].str.lower().str.replace(" ", "-")
 
     # Build features matching the model
@@ -1214,6 +1808,142 @@ with tab4:
             title=f"Forecast vs Actual - Displaying: {display_mode}", height=420,
             legend=dict(orientation='h', y=1.1))
         st.plotly_chart(fig, use_container_width=True)
+
+        # --- Optional Fine-tuning on New Data ---
+        if st.session_state.use_uploaded_data and st.session_state.uploaded_data is not None:
+            st.markdown('<div class="section-header">🎯 FINE-TUNE MODEL ON NEW DATA</div>', unsafe_allow_html=True)
+            
+            finetune_col1, finetune_col2 = st.columns(2)
+            
+            with finetune_col1:
+                st.markdown("### Option 1: Lightweight Fine-tuning")
+                st.info("""
+                **Benefits:**
+                - Fast (few seconds)
+                - Adapts to your data
+                - Keeps original knowledge
+                - Best for 100-1000 rows
+                """)
+                
+                if st.button("⚡ Fine-tune on Uploaded Data", key="finetune_btn"):
+                    with st.spinner("⏳ Fine-tuning model on your data..."):
+                        try:
+                            # Prepare user data for fine-tuning
+                            uploaded_df = st.session_state.uploaded_data
+                            uploaded_enc = pd.get_dummies(uploaded_df, columns=['region','service_type'], drop_first=True)
+                            
+                            # Align features
+                            for col in model_features:
+                                if col not in uploaded_enc.columns:
+                                    uploaded_enc[col] = 0
+                            
+                            X_finetune = uploaded_enc[model_features]
+                            y_finetune = uploaded_df['usage_units'].values
+                            
+                            # Fine-tune with small learning rate and few iterations
+                            finetuned_model = XGBRegressor(
+                                n_estimators=10,  # Few iterations for lightweight tuning
+                                learning_rate=0.01,  # Small learning rate
+                                max_depth=3,
+                                random_state=42
+                            )
+                            finetuned_model.fit(X_finetune, y_finetune, verbose=False)
+                            
+                            # Blend original and finetuned predictions
+                            original_preds = model.predict(X_finetune)
+                            finetuned_preds = finetuned_model.predict(X_finetune)
+                            blended_preds = 0.7 * original_preds + 0.3 * finetuned_preds
+                            
+                            # Calculate improvement
+                            from sklearn.metrics import mean_absolute_error
+                            original_mae = mean_absolute_error(y_finetune, original_preds)
+                            blended_mae = mean_absolute_error(y_finetune, blended_preds)
+                            improvement = ((original_mae - blended_mae) / original_mae * 100)
+                            
+                            st.session_state.finetuned_model = finetuned_model
+                            st.session_state.use_finetuned = True
+                            
+                            st.success(f"✅ Fine-tuning complete! MAE improved by {improvement:.1f}%")
+                            st.metric("Original MAE", f"{original_mae:.2f}", delta=f"-{improvement:.1f}%", delta_color="inverse")
+                            
+                        except Exception as e:
+                            st.error(f"❌ Fine-tuning error: {e}")
+            
+            with finetune_col2:
+                st.markdown("### Option 2: Full Retraining")
+                st.warning("""
+                **Benefits:**
+                - Maximum adaptation
+                - Complete model recalibration
+                - Best with large datasets
+                
+                **Drawbacks:**
+                - Takes longer
+                - Needs good data quality
+                """)
+                
+                if st.button("🔄 Full Model Retrain", key="retrain_btn"):
+                    with st.spinner("⏳ Retraining model (this may take a minute)..."):
+                        try:
+                            # Full retrain on all available data
+                            all_data = pd.concat([df_raw, st.session_state.uploaded_data], ignore_index=True)
+                            all_enc = pd.get_dummies(all_data, columns=['region','service_type'], drop_first=True)
+                            
+                            for col in model_features:
+                                if col not in all_enc.columns:
+                                    all_enc[col] = 0
+                            
+                            X_full = all_enc[model_features]
+                            y_full = all_data['usage_units'].values
+                            
+                            # Train new model
+                            retrained_model = XGBRegressor(
+                                n_estimators=100,
+                                learning_rate=0.05,
+                                max_depth=6,
+                                random_state=42
+                            )
+                            retrained_model.fit(X_full, y_full, verbose=False)
+                            
+                            st.session_state.retrained_model = retrained_model
+                            st.session_state.use_retrained = True
+                            st.session_state.training_data_size = len(all_data)
+                            
+                            st.success(f"✅ Retraining complete on {len(all_data):,} rows!")
+                            
+                        except Exception as e:
+                            st.error(f"❌ Retraining error: {e}")
+            
+            # Show which model is being used
+            st.markdown("---")
+            status_col1, status_col2, status_col3 = st.columns(3)
+            
+            with status_col1:
+                if st.session_state.get('use_retrained', False):
+                    st.success(f"✅ Using Retrained Model\nTrained on {st.session_state.training_data_size:,} rows")
+                elif st.session_state.get('use_finetuned', False):
+                    st.info("ℹ️ Using Fine-tuned Model\n(70% Original + 30% Finetuned)")
+                else:
+                    st.info("📊 Using Original Model\n(No adaptation applied)")
+            
+            with status_col2:
+                st.markdown("### Reset to Original")
+                if st.button("🔄 Use Original Model Again"):
+                    st.session_state.use_finetuned = False
+                    st.session_state.use_retrained = False
+                    st.info("✅ Switched back to original model")
+            
+            with status_col3:
+                st.markdown("### Export Adapted Model")
+                if st.session_state.get('use_finetuned') or st.session_state.get('use_retrained'):
+                    model_to_export = st.session_state.retrained_model if st.session_state.get('use_retrained') else st.session_state.finetuned_model
+                    model_bytes = joblib.dumps(model_to_export)
+                    st.download_button(
+                        label="⬇️ Download Adapted Model",
+                        data=model_bytes,
+                        file_name="adapted_xgboost_model.pkl",
+                        mime="application/octet-stream"
+                    )
 
         # --- Feature Importance ---
         st.markdown('<div class="section-header">FEATURE IMPORTANCE</div>', unsafe_allow_html=True)

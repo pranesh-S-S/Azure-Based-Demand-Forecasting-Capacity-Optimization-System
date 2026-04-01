@@ -1,0 +1,76 @@
+{
+  "environment": "production",
+  "deployment": {
+    "models_dir": "production/models",
+    "staging_dir": "production/staging",
+    "logs_dir": "production/logs",
+    "max_versions_to_keep": 5,
+    "auto_cleanup": true
+  },
+  "api": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "workers": 4,
+    "timeout_seconds": 30,
+    "rate_limit": {
+      "enabled": true,
+      "requests_per_minute": 1000
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "metrics_window_size": 100,
+    "performance_alert_threshold": 0.1,
+    "health_check_interval_seconds": 60,
+    "anomaly_sensitivity": 2.0
+  },
+  "alerting": {
+    "enabled": true,
+    "notification_channels": [
+      "log"
+    ],
+    "critical_alert_escalation": true
+  },
+  "scheduling": {
+    "enabled": true,
+    "retraining_frequency": "daily",
+    "retraining_time": "02:00",
+    "report_frequency": "daily",
+    "report_time": "06:00",
+    "health_check_frequency": "hourly"
+  },
+  "azure": {
+    "enabled": true,
+    "subscription_id": "",
+    "resource_group": "",
+    "autoscale_enabled": true,
+    "cost_optimization_enabled": true
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file": "production/logs/production.log",
+    "max_file_size_mb": 100,
+    "backup_count": 5
+  },
+  "security": {
+    "api_key_required": true,
+    "ssl_enabled": true,
+    "cors_enabled": true,
+    "cors_origins": [
+      "http://localhost:3000",
+      "https://localhost:3000"
+    ]
+  },
+  "performance": {
+    "cache_enabled": true,
+    "cache_ttl_seconds": 300,
+    "async_enabled": true,
+    "batch_prediction_enabled": true
+  },
+  "data": {
+    "retraining_data_window_days": 30,
+    "min_samples_for_retraining": 100,
+    "drift_detection_enabled": true
+  }
+}

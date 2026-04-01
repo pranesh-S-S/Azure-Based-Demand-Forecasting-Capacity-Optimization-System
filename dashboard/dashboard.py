@@ -1,9 +1,15 @@
 import streamlit as st
 import joblib
 import pandas as pd
+import os
 
-model = joblib.load("../models/best_xgboost_model.pkl")
-features = joblib.load("../models/model_features.pkl")
+# Get the project root directory
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+model_path = os.path.join(project_root, "models", "best_xgboost_model.pkl")
+features_path = os.path.join(project_root, "models", "model_features.pkl")
+
+model = joblib.load(model_path)
+features = joblib.load(features_path)
 
 st.title("Azure Demand Forecast Dashboard")
 
