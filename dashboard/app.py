@@ -1259,7 +1259,7 @@ with tab1:
         st.plotly_chart(fig, use_container_width=True)
 
     with c2:
-        monthly = df.set_index('timestamp').resample('M').agg(
+        monthly = df.set_index('timestamp').resample('ME').agg(
             total_cost=('cost_usd','sum'), wasted=('wasted_capacity_cost','sum')).reset_index()
         fig = go.Figure()
         fig.add_trace(go.Bar(x=monthly['timestamp'], y=monthly['total_cost'],
@@ -1314,7 +1314,7 @@ with tab2:
     # ── Growth & Seasonality ──
     c1, c2 = st.columns(2)
     with c1:
-        growth = df.set_index('timestamp').resample('M')['daily_growth'].mean().reset_index()
+        growth = df.set_index('timestamp').resample('ME')['daily_growth'].mean().reset_index()
         fig = px.bar(growth, x='timestamp', y='daily_growth',
                      title="Avg Daily Growth Rate (%)",
                      color_discrete_sequence=['#38bdf8'])
@@ -2010,7 +2010,7 @@ with tab5:
 
     # Risk timeline
     st.markdown('<div class="section-header">RISK EVENT TIMELINE</div>', unsafe_allow_html=True)
-    risk_timeline = df.set_index('timestamp').resample('W')['over_capacity_flag'].sum().reset_index()
+    risk_timeline = df.set_index('timestamp').resample('W-SUN')['over_capacity_flag'].sum().reset_index()
     fig = go.Figure()
     fig.add_trace(go.Bar(x=risk_timeline['timestamp'], y=risk_timeline['over_capacity_flag'],
                          name='Risk Events', marker_color='#ef4444'))
