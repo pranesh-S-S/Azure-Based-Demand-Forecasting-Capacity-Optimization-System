@@ -1303,7 +1303,7 @@ with tab2:
 
     group_by = st.radio("Group by", ["service_type", "region"], horizontal=True)
 
-    monthly_trend = df.set_index('timestamp').groupby([pd.Grouper(freq='M'), group_by])[sel_metric].mean().reset_index()
+    monthly_trend = df.set_index('timestamp').groupby([pd.Grouper(freq='ME'), group_by])[sel_metric].mean().reset_index()
     fig = px.line(monthly_trend, x='timestamp', y=sel_metric, color=group_by,
                   title=f"Monthly Avg {sel_metric_label} by {group_by.replace('_',' ').title()}",
                   color_discrete_sequence=COLORS)
